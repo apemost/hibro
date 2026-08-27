@@ -1,0 +1,875 @@
+@import "tailwindcss";
+/* Include the classes emitted by Streamdown. */
+@source "../node_modules/streamdown/dist/*.js";
+
+/* Expose the panel design tokens to Tailwind. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: light dark;
+  --radius: 0.625rem;
+  /* Follow the browser theme while keeping Hibro blue for primary actions. */
+  --background: Canvas;
+  --foreground: CanvasText;
+  --secondary: ButtonFace;
+  --secondary-foreground: CanvasText;
+  --muted: color-mix(in srgb, CanvasText 6%, Canvas);
+  --muted-foreground: color-mix(in srgb, CanvasText 55%, Canvas);
+  --primary: oklch(0.546 0.245 262.881); /* Hibro blue */
+  --primary-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: color-mix(in srgb, CanvasText 14%, Canvas);
+  --input: color-mix(in srgb, CanvasText 14%, Canvas);
+  --ring: oklch(0.546 0.245 262.881);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Match the medium gray used by Chrome's dark side-panel surfaces. */
+    --background: oklch(0.32 0.005 264);
+    --foreground: oklch(0.93 0.005 264);
+    --secondary: oklch(0.36 0.005 264);
+    --secondary-foreground: oklch(0.95 0 0);
+    --muted: oklch(0.36 0.005 264);
+    --muted-foreground: oklch(0.72 0.005 264);
+    --primary: oklch(0.62 0.2 263);
+    --ring: oklch(0.62 0.2 263);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 14%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+  font-size: 14px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Show native scrollbars only while their surface is moving. */
+.conversation-scroll::-webkit-scrollbar,
+.tool-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.conversation-scroll::-webkit-scrollbar-track,
+.tool-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-scroll::-webkit-scrollbar-thumb,
+.tool-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: content-box;
+}
+
+.conversation-scroll.is-scrolling-x::-webkit-scrollbar-thumb:horizontal,
+.conversation-scroll.is-scrolling-y::-webkit-scrollbar-thumb:vertical,
+.tool-scroll.is-scrolling-x::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+}
+
+/* Draw position indicators when the host hides Chromium overlay scrollbars. */
+#log::before,
+#log::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  border-radius: 999px;
+  background: var(--muted-foreground);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#log::before {
+  bottom: 2px;
+  left: var(--conversation-scrollbar-left, 2px);
+  width: var(--conversation-scrollbar-width, 32px);
+  height: 4px;
+}
+
+#log::after {
+  top: var(--conversation-scrollbar-top, 2px);
+  right: 2px;
+  width: 4px;
+  height: var(--conversation-scrollbar-height, 32px);
+}
+
+#log.is-scrolling-x::before,
+#log.is-scrolling-y::after {
+  opacity: 0.72;
+}
+
+/* Keep the provider menu inside the panel when labels are wide. */
+.provider-picker {
+  position: relative;
+  min-width: 0;
+  /* Use the toolbar space left after Settings, Send or Stop, and their gaps. */
+  max-width: calc(100% - 84px);
+  margin-inline-end: 8px;
+}
+
+#providerSelect {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+#providerSelect svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.provider-picker-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.provider-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(280px, 80vw);
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.provider-menu button {
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-menu button:hover {
+  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+
+.provider-menu button[aria-selected="true"] {
+  font-weight: 600;
+}
+
+/* Keep the run readout compact so it does not cover the conversation. */
+#run-readout {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding-bottom: 6px;
+}
+
+/* Status fallbacks do not use the reasoning title. */
+.run-readout-title {
+  font-weight: 600;
+}
+
+.run-readout-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+footer {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.composer-input {
+  position: relative;
+}
+
+.composer textarea#input {
+  display: block;
+  width: 100%;
+  max-height: 400px;
+  resize: none;
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+}
+
+/* A full-width handle makes the composer easier to resize with mouse or touch. */
+.input-resize-handle {
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  right: 0;
+  left: 0;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.input-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 32px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--muted-foreground);
+  opacity: 0.32;
+  transform: translateX(-50%);
+}
+
+.input-resize-handle:hover::after,
+.input-resize-handle:focus-visible::after {
+  opacity: 0.75;
+}
+
+.input-resize-handle:focus-visible::after {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.icon-btn:hover {
+  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+
+/* display:inline-flex would otherwise override the hidden attribute. */
+.icon-btn[hidden] {
+  display: none;
+}
+
+.icon-btn.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.icon-btn.primary:hover {
+  filter: brightness(0.94);
+}
+
+/* Theme-aware tooltip text comes from data-tip. */
+.icon-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: var(--foreground);
+  color: var(--background);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.icon-btn:hover::after {
+  opacity: 1;
+  transition: none;
+}
+
+.toolbar .icon-btn:first-child::after {
+  left: 0;
+  transform: none;
+}
+
+.user-message-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user-message-toggle {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.user-message-toggle:hover {
+  text-decoration: underline;
+}
+
+/* Give errors a distinct surface and a theme-colored warning sign. */
+.msg.error .error-bubble {
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklch, var(--destructive) 45%, transparent);
+  background: color-mix(in oklch, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.msg.error .error-bubble::before {
+  content: "\26A0\FE0E"; /* ⚠︎ warning sign */
+  flex: none;
+  line-height: 1.45;
+}
+
+.msg.error .error-action {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Dots show idle gaps during a run without looking like a second text caret. */
+.stream-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.stream-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  animation: hibro-pulse 1.2s ease-in-out infinite;
+}
+
+.stream-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.stream-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes hibro-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Position message actions beside the clicked message or selected text. */
+.action-pill {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 4px));
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22);
+}
+
+.action-pill.below {
+  transform: translate(-50%, 4px);
+}
+
+.action-pill button {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.action-pill button:hover {
+  background: color-mix(in oklch, var(--background) 20%, transparent);
+}
+
+/* Separate Copy and Explain when both actions are available. */
+.action-pill-divider {
+  width: 1px;
+  height: 14px;
+  background: color-mix(in oklch, var(--background) 35%, transparent);
+}
+
+.selection-explain-card {
+  position: fixed;
+  z-index: 51;
+  transform: translate(-50%, 0);
+  margin-top: 6px;
+  width: min(320px, 90vw);
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.selection-explain-card.above {
+  margin-top: 0;
+  transform: translate(-50%, calc(-100% - 6px));
+}
+
+.selection-explain-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.selection-explain-quote {
+  flex: 1;
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.selection-explain-close {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.selection-explain-body {
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+
+/* Keep long code blocks to 25 visible lines and scroll the rest. */
+[data-streamdown="code-block-body"] pre {
+  max-height: 25lh;
+  overflow-y: auto;
+}
+
+/* Reserve chart height while ECharts loads. */
+.chart-block {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 260px;
+}
+
+.chart-fallback {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 25lh;
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: pre;
+}
+
+.chart-note {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* HTML previews use a white canvas like a regular web page. */
+.html-block {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.html-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.html-block-lang {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.html-toggle {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.html-toggle button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.html-toggle button:hover {
+  color: var(--foreground);
+}
+
+.html-toggle button.active {
+  background: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.html-code {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 25lh;
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: pre;
+}
+
+.html-preview {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: none;
+  background: #ffffff;
+}
+
+/* The app bar holds History, the thread title, and New chat. */
+.app-bar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Top-bar tooltips open downward to stay inside the panel. */
+.app-bar .icon-btn::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+/* Anchor the New chat tooltip away from the right edge. */
+#quickNewChatBtn::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Keep the drawer close tooltip below the top edge. */
+.conv-drawer-head .icon-btn::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+/* History opens as a left slide-over. */
+.conv-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.conv-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(280px, 86%);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  box-shadow: 6px 0 20px rgba(0, 0, 0, 0.18);
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+  overflow: hidden;
+}
+
+.conv-drawer.open {
+  transform: none;
+}
+
+.conv-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conv-drawer-head .spacer {
+  flex: 1;
+}
+
+.conv-drawer-title {
+  margin: 0;
+  padding-inline-start: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.conv-drawer-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* Mark the complete active History row. */
+.conv-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.conv-row.active {
+  background: color-mix(in oklch, var(--primary) 16%, transparent);
+}
+
+.conv-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.conv-row-main:hover {
+  background: color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+
+.conv-actions {
+  display: inline-flex;
+  flex: none;
+  gap: 1px;
+}
+
+.conv-action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.conv-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.conv-action:hover {
+  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+  color: var(--foreground);
+}
+
+.conv-del:hover {
+  background: color-mix(in oklch, var(--destructive) 22%, transparent);
+  color: var(--destructive);
+}
+
+.conv-rename-form {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.conv-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 4px 7px;
+  border: 1px solid var(--ring);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.conv-rename-input:focus {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 24%, transparent);
+}
+
+.conv-title {
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.conv-time {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.conv-empty {
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}

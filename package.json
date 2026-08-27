@@ -1,0 +1,45 @@
+{
+  "name": "hibro",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "pnpm build && playwright test",
+    "eval": "vite build --mode eval && node eval/run.mjs"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/chrome": "^0.2.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/turndown": "^5.0.6",
+    "@vitejs/plugin-react": "^6.0.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.38",
+    "@ai-sdk/openai": "^4.0.40",
+    "@ai-sdk/openai-compatible": "^3.0.30",
+    "@streamdown/cjk": "^1.0.3",
+    "@streamdown/math": "^1.0.2",
+    "ai": "^7.0.62",
+    "clsx": "^2.1.1",
+    "echarts": "^6.1.0",
+    "mermaid": "^11.16.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "streamdown": "^2.5.0",
+    "tailwind-merge": "^3.6.0",
+    "turndown": "^7.2.4",
+    "use-stick-to-bottom": "^1.1.6",
+    "zod": "^4.4.3"
+  }
+}

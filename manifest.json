@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Hibro",
+  "version": "0.1.0",
+  "description": "Ask AI about any page.",
+  "permissions": [
+    "debugger",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "options_page": "src/options.html",
+  "background": {
+    "service_worker": "src/background.ts"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.ts"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "src/panel.html"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Hibro",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAp7SHE/+UTXacRiLRzKx3z9GObgVZj4QCBQRw/esnEIbql90uBZTfYC8cxcSeswZIxp5yJARNq29IVh8ds4XTVgFvAharI0t5CCLro0Qes+WsESFFJw27rD2F5bqxWEdTDotclmMt3b9OcFjEkRKJ53Tm59O3HJb7aKNtAHRIt46fWWbrzl+irdIVdIxSJycYjZwduTd8dO4UDlOs/e73J9L6p87jaEXgyaIAg+hW/UG4BHfEBnHegVHoRjEj5LUARck+QZYvm9ev84WOQhBHdGfvS/4He2acKcAs9srGIvWXH3OY7joBdVN6AfsnHCmg6J4Nct5NWc5Gdw5a0v1RXwIDAQAB"
+}

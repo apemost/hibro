@@ -1,0 +1,443 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --focus: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Match the dark surface used by the browser and side panel. */
+    --bg: #313335;
+    --fg: #e2e6ea;
+    --focus: #60a5fa;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Inactive tab panels must stay hidden even when they use flex layout. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main {
+  max-width: 680px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  font-size: 18px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-header h1 {
+  margin: 0;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  align-items: center;
+  gap: 24px;
+  padding: 16px;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 8px;
+}
+
+.setting-copy {
+  min-width: 0;
+}
+
+.setting-label {
+  display: block;
+  font-weight: 600;
+}
+
+.setting-description {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: 0.7;
+}
+
+.setting-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.setting-control:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid color-mix(in oklch, var(--focus) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+  margin: 16px 0 4px;
+}
+
+.tab {
+  font: inherit;
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tab[aria-selected='true'] {
+  opacity: 1;
+  border-bottom-color: #2563eb;
+}
+
+.tab:hover {
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.tabpanel {
+  padding-top: 16px;
+}
+
+.hint {
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.privacy-notice {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklch, var(--focus) 38%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--focus) 8%, transparent);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.privacy-notice p {
+  margin: 4px 0 0;
+}
+
+.privacy-consent {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: row;
+  font-weight: 600;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.privacy-consent input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 500;
+}
+
+input {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  color: inherit;
+}
+
+select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  color: inherit;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+button[type="submit"] {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+button:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+button[type="submit"]:hover {
+  background: #1d4ed8;
+}
+
+#status {
+  min-height: 1.2em;
+  color: #16a34a;
+}
+
+#skills {
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+#skills code {
+  background: rgba(128, 128, 128, 0.15);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+
+.skill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.skill-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Make provider and skill names read as row titles. */
+.provider-row strong,
+.skill-row strong {
+  font-size: 15px;
+}
+
+.skill-match {
+  opacity: 0.7;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.skill-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.skill-row-actions button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+#skillStatus {
+  min-height: 1.2em;
+  color: #16a34a;
+  font-size: 13px;
+  margin: 0;
+}
+
+.skills-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+#newSkillBtn {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+#newSkillBtn:hover {
+  background: #1d4ed8;
+}
+
+.skill-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge.builtin {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+#skillDialog {
+  width: min(560px, 92vw);
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: var(--bg);
+  color: var(--fg);
+  padding: 20px;
+}
+
+#skillDialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#skillDialog h3 {
+  margin-top: 0;
+}
+
+/* LLM provider profiles */
+
+#providerList {
+  display: flex;
+  flex-direction: column;
+}
+
+.provider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+#providerStatus {
+  min-height: 1.2em;
+  color: #16a34a;
+  font-size: 13px;
+  margin: 0;
+}
+
+.provider-error {
+  margin: 12px 0 0;
+  color: #dc2626;
+}
+
+#newProviderBtn {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+#newProviderBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+#providerDialog {
+  width: min(560px, 92vw);
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: var(--bg);
+  color: var(--fg);
+  padding: 20px;
+}
+
+#providerDialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#providerDialog h3 {
+  margin-top: 0;
+}
+
+/* Align both editor action groups consistently. */
+#providerDialog .actions,
+#skillDialog .actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
