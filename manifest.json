@@ -13,6 +13,9 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' blob: data:"
+  },
   "options_page": "src/options.html",
   "background": {
     "service_worker": "src/background.ts"

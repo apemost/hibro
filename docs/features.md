@@ -53,7 +53,15 @@ Assistant answers support regular Markdown, CJK text, and math. Fenced blocks ca
 
 HTML previews are static. Scripts, forms, popups, and network requests are blocked inside the preview. Code is always available as the default view.
 
-Images in model-generated Markdown are not loaded. Chart blocks also reject remote image addresses. This prevents an answer from making an unexpected request to another website.
+Hibro treats image data and image addresses differently:
+
+- A compatible provider/model can return an inline PNG, JPEG, or WebP image asset through the structured response stream. Hibro validates assets up to 5 MiB and displays them from a temporary local address. The current provider adapter and model must actually support this output; ordinary image links in generated text do not become trusted assets.
+- An image address in model-generated Markdown starts as an inactive card that shows the destination host. Hibro makes no request until you choose Load once for that individual image. The card warns that loading contacts the host and reveals your IP address.
+- A one-time load accepts only a credential-free HTTPS address with a public-looking host. The request omits browser credentials and the referrer, rejects redirects, and accepts only a matching PNG, JPEG, or WebP response up to 5 MiB. The image is then displayed from a temporary local address that is removed with the message.
+
+Literal IP addresses, localhost and special-use hostnames, non-HTTPS addresses, credential-bearing addresses, redirects, SVG, mismatched content, and oversized responses are blocked. A browser-only extension cannot prove before connecting that a public-looking hostname will not resolve or rebind to a private address, so only load a host you recognize.
+
+Mermaid image nodes remain blocked, chart blocks reject remote image addresses, and HTML Preview remains networkless. These renderers cannot use the one-time Markdown image loader as a parallel network path.
 
 Long code blocks show up to 25 lines before scrolling. Invalid chart or HTML content falls back to readable code instead of breaking the conversation.
 

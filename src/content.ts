@@ -249,7 +249,7 @@ function getOverview(): OverviewResponse {
 // Tag visible interactive elements and return them. Previous tags are cleared
 // first so ids are always fresh and contiguous for the caller. An optional
 // filter (case-insensitive substring over text/href/name/placeholder) narrows
-// the list without lowering the 60-element cap.
+// candidates before the 60-result cap is applied.
 function snapshotElements(filter?: string): SnapshotElement[] {
   document.querySelectorAll(`[${HIBRO_ID_ATTR}]`).forEach((el) => {
     el.removeAttribute(HIBRO_ID_ATTR);
@@ -261,29 +261,35 @@ function snapshotElements(filter?: string): SnapshotElement[] {
   );
   const elements: SnapshotElement[] = [];
   for (const el of candidates) {
-    if (elements.length >= MAX_ELEMENTS) break;
     if (!el.getClientRects().length) continue;
+    const tag = el.tagName.toLowerCase();
+    const text = truncate(el.innerText || (el as HTMLInputElement).value || '', 60);
+    const name = el.getAttribute('name') || undefined;
+    const placeholder = el.getAttribute('placeholder') || undefined;
+    const href = el instanceof HTMLAnchorElement ? truncate(el.href, 120) : undefined;
+    if (
+      needle &&
+      ![text, href, name, placeholder, tag]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle))
+    ) {
+      continue;
+    }
+    if (elements.length >= MAX_ELEMENTS) break;
     const id = elements.length + 1;
     el.setAttribute(HIBRO_ID_ATTR, String(id));
-    const entry: SnapshotElement = {
+    elements.push({
       id,
-      tag: el.tagName.toLowerCase(),
-      text: truncate(el.innerText || (el as HTMLInputElement).value || '', 60),
+      tag,
+      text,
       type: el.getAttribute('type') || undefined,
-      name: el.getAttribute('name') || undefined,
-      placeholder: el.getAttribute('placeholder') || undefined,
-      href: el instanceof HTMLAnchorElement ? truncate(el.href, 120) : undefined,
-    };
-    elements.push(entry);
+      name,
+      placeholder,
+      href,
+    });
   }
 
-  return needle
-    ? elements.filter((e) =>
-        [e.text, e.href, e.name, e.placeholder, e.tag]
-          .filter(Boolean)
-          .some((v) => String(v).toLowerCase().includes(needle)),
-      )
-    : elements;
+  return elements;
 }
 
 // Legacy snapshot kept for compatibility: visible text + tagged elements.

@@ -9,6 +9,8 @@ import { startMock, type MockServer } from './mock';
 import { configureProvider as configureEvalProvider } from '../eval/configure-provider.mjs';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+const ONE_PIXEL_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 // Serial: the options test persists the AI config that the chat/task tests
 // rely on, and tab focus is managed explicitly.
@@ -47,6 +49,9 @@ test('extension loads with required permissions', async ({ extensionId }) => {
   expect(manifest.permissions).toContain('scripting');
   expect(manifest.permissions).not.toContain('tabs');
   expect(manifest.host_permissions).toContain('<all_urls>');
+  expect(manifest.content_security_policy?.extension_pages).toContain(
+    "img-src 'self' blob: data:"
+  );
 });
 
 test('local storage is available to extension pages but not content scripts', async ({
@@ -1018,6 +1023,41 @@ test('content script extracts page text', async ({ browserContext, extensionId }
   await fixture.close();
 });
 
+test('interactive-element filtering happens before the 60-result cap', async ({
+  browserContext,
+  extensionId
+}) => {
+  const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
+  await fixture.evaluate(() => {
+    const host = document.createElement('section');
+    for (let index = 0; index < 61; index += 1) {
+      const button = document.createElement('button');
+      button.textContent = `Filler ${index + 1}`;
+      host.append(button);
+    }
+    const target = document.createElement('button');
+    target.id = 'filtered-target';
+    target.textContent = 'Unique target';
+    host.append(target);
+    document.body.append(host);
+  });
+
+  const elements = await panel.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const response = await chrome.tabs.sendMessage(tab.id!, {
+      type: 'hibro:elements',
+      filter: 'unique target'
+    });
+    return response.elements as Array<{ id: number; tag: string; text: string }>;
+  });
+
+  expect(elements).toEqual([{ id: 1, tag: 'button', text: 'Unique target' }]);
+  expect(await fixture.locator('#filtered-target').getAttribute('data-hibro-id')).toBe('1');
+  await expect(fixture.locator('[data-hibro-id]')).toHaveCount(1);
+  await panel.close();
+  await fixture.close();
+});
+
 test('normal page without a content script recovers without a page refresh', async ({
   browserContext,
   extensionId
@@ -1434,6 +1474,289 @@ test('model Markdown cannot load remote images', async ({ browserContext, extens
   }
 });
 
+test('trusted provider image assets render from local data without a network request', async ({
+  browserContext,
+  extensionId
+}) => {
+  const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
+  const externalRequests: string[] = [];
+  const onRequest = (request: import('@playwright/test').Request) => {
+    if (/^https?:/i.test(request.url())) externalRequests.push(request.url());
+  };
+  browserContext.on('request', onRequest);
+  await panel.evaluate(async ({ data }) => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'provider-image',
+          title: 'Provider image',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'provider-image-response',
+              role: 'assistant',
+              parts: [
+                {
+                  type: 'image-asset',
+                  provenance: 'provider-inline',
+                  mediaType: 'image/png',
+                  base64: data,
+                  byteLength: 68,
+                  alt: 'Generated pixel'
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'provider-image'
+    });
+  }, { data: ONE_PIXEL_PNG_BASE64 });
+
+  try {
+    externalRequests.length = 0;
+    await panel.reload();
+    const image = panel.getByRole('img', { name: 'Generated pixel' });
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute('src', /^blob:chrome-extension:\/\//);
+    expect(externalRequests).toEqual([]);
+  } finally {
+    browserContext.off('request', onRequest);
+    await panel.close();
+    await fixture.close();
+  }
+});
+
+test('remote Markdown images require one-time loading without credentials or referrer', async ({
+  browserContext,
+  extensionId
+}) => {
+  const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
+  const imageUrl = 'https://assets.example.org/generated.png?token=unique';
+  const requests: Array<{ cookie?: string; referer?: string }> = [];
+  await browserContext.addCookies([
+    {
+      name: 'remote-session',
+      value: 'must-not-leak',
+      domain: 'assets.example.org',
+      path: '/',
+      secure: true,
+      sameSite: 'None'
+    }
+  ]);
+  await browserContext.route(imageUrl, async (route) => {
+    const headers = route.request().headers();
+    requests.push({ cookie: headers.cookie, referer: headers.referer });
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(ONE_PIXEL_PNG_BASE64, 'base64')
+    });
+  });
+  await panel.evaluate(async ({ url }) => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'remote-image-load-once',
+          title: 'Remote image load once',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'remote-image-response',
+              role: 'assistant',
+              parts: [{ type: 'text', text: `![Generated landscape](${url})` }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'remote-image-load-once'
+    });
+  }, { url: imageUrl });
+
+  try {
+    await panel.reload();
+    const card = panel.getByRole('figure', { name: 'Generated landscape' });
+    await expect(card).toContainText('assets.example.org');
+    await expect(card).toContainText('IP address');
+    await expect(
+      card.getByRole('button', { name: 'Load image from assets.example.org' })
+    ).toBeVisible();
+    expect(requests).toEqual([]);
+
+    await card.getByRole('button', { name: 'Load image from assets.example.org' }).click();
+    const image = card.getByRole('img', { name: 'Generated landscape' });
+    await expect(image).toBeVisible();
+    await expect.poll(() => requests.length).toBe(1);
+    expect(requests).toEqual([{ cookie: undefined, referer: undefined }]);
+
+    const objectUrl = await image.getAttribute('src');
+    expect(objectUrl).toMatch(/^blob:chrome-extension:\/\//);
+    expect(
+      await panel.evaluate(async (url) => (await fetch(url!)).ok, objectUrl)
+    ).toBe(true);
+
+    await panel.locator('#quickNewChatBtn').click();
+    await expect(image).toHaveCount(0);
+    await expect
+      .poll(() =>
+        panel.evaluate(async (url) => {
+          try {
+            await fetch(url!);
+            return true;
+          } catch {
+            return false;
+          }
+        }, objectUrl)
+      )
+      .toBe(false);
+  } finally {
+    await browserContext.unroute(imageUrl);
+    await panel.close();
+    await fixture.close();
+  }
+});
+
+test('remote image loading blocks unsafe destinations and unsafe responses', async ({
+  browserContext,
+  extensionId
+}) => {
+  const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
+  const origin = 'https://assets.example.org';
+  const requests: string[] = [];
+  const redirectedTargets: string[] = [];
+  await browserContext.route(`${origin}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url.pathname);
+    if (url.pathname === '/not-image') {
+      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'not an image' });
+      return;
+    }
+    if (url.pathname === '/oversized.png') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: Buffer.alloc(5 * 1024 * 1024 + 1)
+      });
+      return;
+    }
+    if (url.pathname === '/redirect.png') {
+      await route.fulfill({
+        status: 302,
+        headers: { location: 'https://127.0.0.1/private-target.png' }
+      });
+      return;
+    }
+    await route.abort();
+  });
+  await browserContext.route('https://127.0.0.1/private-target.png', async (route) => {
+    redirectedTargets.push(route.request().url());
+    await route.abort();
+  });
+  await panel.evaluate(async ({ origin }) => {
+    const now = Date.now();
+    const markdown = [
+      '![Insecure scheme](http://assets.example.org/insecure.png)',
+      '![Private address](https://127.0.0.1/private.png)',
+      '![Credential address](https://user:secret@assets.example.org/credential.png)',
+      `![Wrong response type](${origin}/not-image)`,
+      `![Oversized response](${origin}/oversized.png)`,
+      `![Redirect response](${origin}/redirect.png)`
+    ].join('\n\n');
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'unsafe-remote-images',
+          title: 'Unsafe remote images',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'unsafe-remote-images-response',
+              role: 'assistant',
+              parts: [{ type: 'text', text: markdown }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'unsafe-remote-images'
+    });
+  }, { origin });
+
+  try {
+    await panel.reload();
+    for (const name of ['Insecure scheme', 'Private address', 'Credential address']) {
+      const card = panel.getByRole('figure', { name });
+      await expect(card).toContainText('blocked');
+      await expect(card.getByRole('button')).toHaveCount(0);
+    }
+    expect(requests).toEqual([]);
+
+    for (const name of ['Wrong response type', 'Oversized response', 'Redirect response']) {
+      const card = panel.getByRole('figure', { name });
+      await card.getByRole('button', { name: 'Load image from assets.example.org' }).click();
+      await expect(card.getByRole('alert')).toContainText('could not be loaded safely');
+    }
+    expect(requests).toEqual(['/not-image', '/oversized.png', '/redirect.png']);
+    expect(redirectedTargets).toEqual([]);
+  } finally {
+    await browserContext.unroute(`${origin}/**`);
+    await browserContext.unroute('https://127.0.0.1/private-target.png');
+    await panel.close();
+    await fixture.close();
+  }
+});
+
+test('Mermaid diagrams cannot load remote images', async ({ browserContext, extensionId }) => {
+  const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
+  const imageRequests = mock.imageRequests;
+  const trackingUrl = `http://127.0.0.1:${mock.port}/tracking-pixel`;
+  const escapedTrackingUrl = trackingUrl.replace('http://', 'h&#x74;tp&colon;&sol;&sol;');
+  await panel.evaluate(async ({ url }) => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'remote-mermaid',
+          title: 'Remote Mermaid image',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'remote-mermaid-response',
+              role: 'assistant',
+              parts: [
+                {
+                  type: 'text',
+                  text: `\`\`\`mermaid\nflowchart TD\n  A@{ img: "${url}", label: "Remote" }\n\`\`\``
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'remote-mermaid'
+    });
+  }, { url: escapedTrackingUrl });
+
+  try {
+    await panel.reload();
+    const block = panel.locator('[data-streamdown="mermaid-block"]');
+    await expect(block).toContainText('Remote resources are not allowed in Mermaid diagrams', {
+      timeout: 30_000
+    });
+    await expect(block.locator('[data-streamdown="mermaid"]')).toHaveCount(0);
+    await panel.waitForTimeout(250);
+    expect(mock.imageRequests).toBe(imageRequests);
+  } finally {
+    await panel.close();
+    await fixture.close();
+  }
+});
+
 test('chart options reject remote image resources', async ({ browserContext, extensionId }) => {
   const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
   const imageRequests = mock.imageRequests;
@@ -1830,6 +2153,11 @@ test('agent types, presses a key, and clicks via tool calls', async ({
     await panel.click('#sendBtn');
     // type 'hi' + press 'a' → input holds 'hia'; clicking #go writes it to #out.
     await expect(fixture.locator('#out')).toHaveText('You typed: hia', { timeout: 60_000 });
+    expect(
+      await fixture.evaluate(
+        () => (window as unknown as { hibroKeyEvents: string[] }).hibroKeyEvents
+      )
+    ).toEqual(['keydown:a', 'keyup:a']);
     await expect(panel.locator('#log .msg.assistant').last()).toContainText('Task finished.');
     expect(await panel.evaluate(() => (window as unknown as { __sawDots: boolean }).__sawDots)).toBe(
       true
@@ -2209,6 +2537,535 @@ test('Settings opens on LLM providers', async ({
     'true'
   );
   await reopened.close();
+});
+
+test('a send during startup cannot be overwritten by stale conversation hydration', async ({
+  browserContext,
+  extensionId
+}) => {
+  const control = await browserContext.newPage();
+  await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await control.evaluate(async () => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'stored-startup-conversation',
+          title: 'Stored startup conversation',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'stored-startup-message',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Stored prompt from before startup' }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'stored-startup-conversation'
+    });
+  });
+  await control.close();
+
+  const fixture = await browserContext.newPage();
+  await fixture.goto(`http://127.0.0.1:${mock.port}/`);
+  const panel = await browserContext.newPage();
+  await panel.addInitScript(() => {
+    const state = window as unknown as {
+      hibroConversationReadStarted: boolean;
+      releaseHibroConversationRead?: () => void;
+    };
+    state.hibroConversationReadStarted = false;
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    const originalGet = chrome.storage.local.get.bind(chrome.storage.local);
+    let holdConversationRead = true;
+    chrome.storage.local.get = (async (...args: Parameters<typeof originalGet>) => {
+      const result = await originalGet(...args);
+      const keys = args[0];
+      if (
+        holdConversationRead &&
+        Array.isArray(keys) &&
+        keys.includes('hibroConversations')
+      ) {
+        holdConversationRead = false;
+        state.hibroConversationReadStarted = true;
+        await readGate;
+      }
+      return result;
+    }) as typeof chrome.storage.local.get;
+
+    const originalConnect = chrome.runtime.connect.bind(chrome.runtime);
+    chrome.runtime.connect = ((...args: Parameters<typeof originalConnect>) => {
+      const port = originalConnect(...args);
+      const originalPostMessage = port.postMessage.bind(port);
+      port.postMessage = ((message: unknown) => {
+        if ((message as { type?: string })?.type === 'send') releaseRead();
+        originalPostMessage(message);
+      }) as typeof port.postMessage;
+      return port;
+    }) as typeof chrome.runtime.connect;
+  });
+
+  try {
+    await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroConversationReadStarted: boolean })
+              .hibroConversationReadStarted
+        )
+      )
+      .toBe(true);
+    await fixture.bringToFront();
+    await panel.fill('#input', 'New prompt submitted during startup');
+    await panel.click('#sendBtn');
+    await panel.waitForTimeout(300);
+
+    const log = await panel.locator('#log').innerText();
+    expect(log).toContain('New prompt submitted during startup');
+    expect(log).not.toContain('Stored prompt from before startup');
+  } finally {
+    await panel.close();
+    await fixture.close();
+  }
+});
+
+test('startup persistence waits for stored conversations before saving an immediate send', async ({
+  browserContext,
+  extensionId
+}) => {
+  const control = await browserContext.newPage();
+  await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await control.evaluate(async () => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'existing-startup-history',
+          title: 'Existing startup history',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'existing-startup-message',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Keep this stored conversation' }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'existing-startup-history'
+    });
+  });
+
+  const fixture = await browserContext.newPage();
+  await fixture.goto(`http://127.0.0.1:${mock.port}/`);
+  const panel = await browserContext.newPage();
+  await panel.addInitScript(() => {
+    type StartupPersistenceProbe = {
+      hibroConversationReadStarted: boolean;
+      hibroPendingSaveTimers: Map<number, () => void>;
+      hibroLastConversationWrite: Promise<void> | null;
+      releaseHibroConversationRead?: () => void;
+      flushHibroSaveTimers: () => Promise<void>;
+    };
+    const state = window as unknown as Window & StartupPersistenceProbe;
+    state.hibroConversationReadStarted = false;
+    state.hibroPendingSaveTimers = new Map();
+    state.hibroLastConversationWrite = null;
+
+    const originalGet = chrome.storage.local.get.bind(chrome.storage.local);
+    let holdConversationRead = true;
+    chrome.storage.local.get = (async (...args: Parameters<typeof originalGet>) => {
+      const result = await originalGet(...args);
+      const keys = args[0];
+      if (
+        holdConversationRead &&
+        Array.isArray(keys) &&
+        keys.includes('hibroConversations') &&
+        keys.includes('activeConversationId')
+      ) {
+        holdConversationRead = false;
+        state.hibroConversationReadStarted = true;
+        await new Promise<void>((resolve) => {
+          state.releaseHibroConversationRead = resolve;
+        });
+      }
+      return result;
+    }) as typeof chrome.storage.local.get;
+
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    chrome.storage.local.set = ((items: Record<string, unknown>) => {
+      const write = originalSet(items);
+      if ('hibroConversations' in items) {
+        state.hibroLastConversationWrite = Promise.resolve(write);
+      }
+      return write;
+    }) as typeof chrome.storage.local.set;
+
+    const originalSetTimeout = window.setTimeout.bind(window);
+    const originalClearTimeout = window.clearTimeout.bind(window);
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      if (timeout !== 400) return originalSetTimeout(handler, timeout, ...args);
+      const id = originalSetTimeout(() => {}, 60_000);
+      state.hibroPendingSaveTimers.set(id, () => {
+        originalClearTimeout(id);
+        state.hibroPendingSaveTimers.delete(id);
+        if (typeof handler === 'function') handler(...args);
+      });
+      return id;
+    }) as typeof window.setTimeout;
+    window.clearTimeout = ((id?: number) => {
+      if (id !== undefined) state.hibroPendingSaveTimers.delete(id);
+      originalClearTimeout(id);
+    }) as typeof window.clearTimeout;
+    state.flushHibroSaveTimers = async () => {
+      const callbacks = [...state.hibroPendingSaveTimers.values()];
+      for (const callback of callbacks) callback();
+      if (state.hibroLastConversationWrite) await state.hibroLastConversationWrite;
+    };
+  });
+
+  try {
+    await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroConversationReadStarted: boolean })
+              .hibroConversationReadStarted
+        )
+      )
+      .toBe(true);
+    await fixture.bringToFront();
+    await panel.fill('#input', 'Immediate startup message');
+    await panel.click('#sendBtn');
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroPendingSaveTimers: Map<number, () => void> })
+              .hibroPendingSaveTimers.size
+        )
+      )
+      .toBeGreaterThan(0);
+    await panel.evaluate(() =>
+      (window as unknown as { flushHibroSaveTimers: () => Promise<void> })
+        .flushHibroSaveTimers()
+    );
+
+    const idsBeforeRelease = await control.evaluate(async () =>
+      ((await chrome.storage.local.get('hibroConversations')).hibroConversations as Array<{
+        id: string;
+      }>).map((item) => item.id)
+    );
+    expect(idsBeforeRelease).toContain('existing-startup-history');
+
+    await panel.evaluate(() =>
+      (window as unknown as { releaseHibroConversationRead?: () => void })
+        .releaseHibroConversationRead?.()
+    );
+    await expect
+      .poll(() =>
+        control.evaluate(async () => {
+          const items = (await chrome.storage.local.get('hibroConversations'))
+            .hibroConversations as Array<{ id: string; messages: unknown[] }>;
+          return {
+            keptStored: items.some((item) => item.id === 'existing-startup-history'),
+            savedImmediate: JSON.stringify(items).includes('Immediate startup message')
+          };
+        })
+      )
+      .toEqual({ keptStored: true, savedImmediate: true });
+  } finally {
+    await panel.close();
+    await fixture.close();
+    await control.close();
+  }
+});
+
+test('New chat during startup cannot be overwritten by stale conversation hydration', async ({
+  browserContext,
+  extensionId
+}) => {
+  const control = await browserContext.newPage();
+  await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await control.evaluate(async () => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'stored-before-new-chat',
+          title: 'Stored before New chat',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'stored-before-new-chat-message',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Stored prompt before New chat' }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'stored-before-new-chat'
+    });
+  });
+  await control.close();
+
+  const panel = await browserContext.newPage();
+  await panel.addInitScript(() => {
+    type ProbeState = {
+      hibroConversationReadStarted: boolean;
+      hibroConversationReadResumed: boolean;
+      hibroSchedulerBlocked: boolean;
+      hibroSchedulerProcessed: number;
+      hibroSchedulerQueue: Array<() => void>;
+      releaseHibroConversationRead?: () => void;
+      blockHibroScheduler: () => void;
+      flushHibroScheduler: () => void;
+    };
+
+    const state = window as unknown as Window & ProbeState;
+    state.hibroConversationReadStarted = false;
+    state.hibroConversationReadResumed = false;
+    state.hibroSchedulerBlocked = false;
+    state.hibroSchedulerProcessed = 0;
+    state.hibroSchedulerQueue = [];
+
+    // Install before React loads so its Scheduler uses this channel.
+    const NativeMessageChannel = MessageChannel;
+    Object.defineProperty(window, 'MessageChannel', {
+      configurable: true,
+      value: class extends NativeMessageChannel {
+        constructor() {
+          super();
+          this.port1.addEventListener('message', () => {
+            queueMicrotask(() => {
+              state.hibroSchedulerProcessed += 1;
+            });
+          });
+          this.port1.start();
+
+          const originalPostMessage = this.port2.postMessage.bind(this.port2);
+          this.port2.postMessage = ((message: unknown) => {
+            const post = () => originalPostMessage(message);
+            if (state.hibroSchedulerBlocked) {
+              state.hibroSchedulerQueue.push(post);
+            } else {
+              post();
+            }
+          }) as typeof this.port2.postMessage;
+        }
+      }
+    });
+
+    state.blockHibroScheduler = () => {
+      state.hibroSchedulerBlocked = true;
+    };
+    state.flushHibroScheduler = () => {
+      state.hibroSchedulerBlocked = false;
+      const queued = state.hibroSchedulerQueue.splice(0);
+      for (const post of queued) post();
+    };
+
+    const originalGet = chrome.storage.local.get.bind(chrome.storage.local);
+    let holdConversationRead = true;
+    chrome.storage.local.get = (async (...args: Parameters<typeof originalGet>) => {
+      const result = await originalGet(...args);
+      const keys = args[0];
+      if (
+        holdConversationRead &&
+        Array.isArray(keys) &&
+        keys.includes('hibroConversations') &&
+        keys.includes('activeConversationId')
+      ) {
+        holdConversationRead = false;
+        state.hibroConversationReadStarted = true;
+        await new Promise<void>((resolve) => {
+          state.releaseHibroConversationRead = resolve;
+        });
+        state.hibroConversationReadResumed = true;
+      }
+      return result;
+    }) as typeof chrome.storage.local.get;
+
+    const originalRandomUUID = crypto.randomUUID.bind(crypto);
+    crypto.randomUUID = (() => {
+      const id = originalRandomUUID();
+      if (state.hibroSchedulerBlocked && state.releaseHibroConversationRead) {
+        const releaseRead = state.releaseHibroConversationRead;
+        state.releaseHibroConversationRead = undefined;
+        releaseRead();
+      }
+      return id;
+    }) as typeof crypto.randomUUID;
+  });
+
+  try {
+    await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroConversationReadStarted: boolean })
+              .hibroConversationReadStarted
+        )
+      )
+      .toBe(true);
+
+    await panel.evaluate(() => {
+      const state = window as unknown as { blockHibroScheduler: () => void };
+      state.blockHibroScheduler();
+      (document.querySelector('#quickNewChatBtn') as HTMLButtonElement).click();
+    });
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroConversationReadResumed: boolean })
+              .hibroConversationReadResumed
+        )
+      )
+      .toBe(true);
+
+    // Let the stale hydration continuation enqueue its update while React's
+    // Scheduler remains paused, then wait until React handles the released queue.
+    await panel.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 0)));
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroSchedulerQueue: Array<() => void> })
+              .hibroSchedulerQueue.length
+        )
+      )
+      .toBeGreaterThan(0);
+    const processedBeforeFlush = await panel.evaluate(() => {
+      const state = window as unknown as {
+        hibroSchedulerProcessed: number;
+        flushHibroScheduler: () => void;
+      };
+      const before = state.hibroSchedulerProcessed;
+      state.flushHibroScheduler();
+      return before;
+    });
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          () =>
+            (window as unknown as { hibroSchedulerProcessed: number })
+              .hibroSchedulerProcessed
+        )
+      )
+      .toBeGreaterThan(processedBeforeFlush);
+
+    await expect(panel.locator('#log .msg')).toHaveCount(0);
+    await expect(panel.locator('#log')).toContainText('Ask about this page');
+    await expect(panel.locator('#log')).not.toContainText('Stored prompt before New chat');
+    await expect
+      .poll(() =>
+        panel.evaluate(
+          async () =>
+            (await chrome.storage.local.get('activeConversationId'))
+              .activeConversationId
+        )
+      )
+      .not.toBe('stored-before-new-chat');
+  } finally {
+    await panel.close();
+  }
+});
+
+test('deleting an inactive conversation flushes the active pending save', async ({
+  browserContext,
+  extensionId
+}) => {
+  const control = await browserContext.newPage();
+  await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await control.evaluate(async () => {
+    const now = Date.now();
+    await chrome.storage.local.set({
+      hibroConversations: [
+        {
+          id: 'active-delete-source',
+          title: 'Active delete source',
+          createdAt: now,
+          updatedAt: now,
+          messages: [
+            {
+              id: 'active-delete-message',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Original active prompt' }]
+            }
+          ]
+        },
+        {
+          id: 'inactive-delete-target',
+          title: 'Inactive delete target',
+          createdAt: now - 1,
+          updatedAt: now - 1,
+          messages: [
+            {
+              id: 'inactive-delete-message',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Old inactive prompt' }]
+            }
+          ]
+        }
+      ],
+      activeConversationId: 'active-delete-source'
+    });
+  });
+  await control.close();
+
+  const fixture = await browserContext.newPage();
+  await fixture.goto(`http://127.0.0.1:${mock.port}/`);
+  const panel = await browserContext.newPage();
+  await panel.addInitScript(() => {
+    const originalSetTimeout = window.setTimeout.bind(window);
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+      originalSetTimeout(handler, timeout === 400 ? 60_000 : timeout, ...args)) as typeof window.setTimeout;
+  });
+
+  try {
+    await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
+    await expect(panel.locator('#log')).toContainText('Original active prompt');
+    await fixture.bringToFront();
+    await panel.fill('#input', 'Unsaved active follow-up');
+    await panel.click('#sendBtn');
+    await expect(panel.locator('#sendBtn')).toBeVisible({ timeout: 30_000 });
+
+    await panel.click('#convDrawerBtn');
+    const inactive = panel.locator('#convDrawer .conv-row', {
+      hasText: 'Inactive delete target'
+    });
+    await inactive.locator('.conv-del').click();
+    await expect
+      .poll(async () =>
+        panel.evaluate(async () => {
+          const items = (await chrome.storage.local.get('hibroConversations'))
+            .hibroConversations as Array<{ id: string }>;
+          return items.some((item) => item.id === 'inactive-delete-target');
+        })
+      )
+      .toBe(false);
+
+    const storedMessages = await panel.evaluate(async () => {
+      const items = (await chrome.storage.local.get('hibroConversations'))
+        .hibroConversations as Array<{ id: string; messages: unknown[] }>;
+      return items.find((item) => item.id === 'active-delete-source')?.messages ?? [];
+    });
+    expect(JSON.stringify(storedMessages)).toContain('Unsaved active follow-up');
+  } finally {
+    await panel.close();
+    await fixture.close();
+  }
 });
 
 test('conversations persist across panel reload and the drawer switches them', async ({

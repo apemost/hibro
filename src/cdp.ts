@@ -56,6 +56,12 @@ async function withDebugger<T>(
   // Enqueue behind any session already in flight for this tab.
   const chained = prior.catch(() => {}).then(() => mine);
   sessionLocks.set(tabId, chained);
+  // A waiter can abort before its predecessor releases. Keep its chained
+  // promise as the queue tail until the predecessor actually settles, so a
+  // later action cannot bypass an active debugger session.
+  void chained.then(() => {
+    if (sessionLocks.get(tabId) === chained) sessionLocks.delete(tabId);
+  });
   try {
     await waitForTurn(prior, signal);
     await withTimeout(
@@ -80,7 +86,6 @@ async function withDebugger<T>(
     }
   } finally {
     release();
-    if (sessionLocks.get(tabId) === chained) sessionLocks.delete(tabId);
   }
 }
 
@@ -279,34 +284,50 @@ export async function cdpScroll(tabId: number, args: ScrollArgs, signal?: AbortS
   return cdpEvaluate(tabId, expr, signal);
 }
 
-// Navigate the tab to a URL, waiting for the load to finish so the next
-// perception call sees the new document (and the content script is injected)
-// instead of racing the commit.
+// Navigate the tab to a URL, waiting for a document load or a same-document
+// navigation so the next perception call sees the committed location.
 const NAVIGATE_TIMEOUT_MS = 15000;
 
 export async function cdpNavigate(tabId: number, url: string, signal?: AbortSignal): Promise<string> {
   checkAbort(signal);
   return withDebugger(tabId, async (send) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let onEvent: ((source: Debuggee, method: string) => void) | undefined;
-    const loaded = new Promise<void>((resolve, reject) => {
+    let targetFrameId: string | undefined;
+    const earlySameDocumentFrames = new Set<string>();
+    let resolveNavigated!: () => void;
+    let onEvent: ((source: Debuggee, method: string, params?: object) => void) | undefined;
+    const navigated = new Promise<void>((resolve, reject) => {
+      resolveNavigated = resolve;
       timer = setTimeout(() => {
         reject(new Error('Navigation timed out waiting for the page to load.'));
       }, NAVIGATE_TIMEOUT_MS);
-      onEvent = (source, method) => {
-        if (source.tabId === tabId && method === 'Page.loadEventFired') resolve();
+      onEvent = (source, method, params) => {
+        if (source.tabId !== tabId) return;
+        if (method === 'Page.loadEventFired') {
+          resolve();
+          return;
+        }
+        if (method !== 'Page.navigatedWithinDocument') return;
+        const frameId = (params as { frameId?: unknown } | undefined)?.frameId;
+        if (typeof frameId !== 'string') return;
+        if (targetFrameId === undefined) earlySameDocumentFrames.add(frameId);
+        else if (frameId === targetFrameId) resolve();
       };
       chrome.debugger.onEvent.addListener(onEvent);
     });
     // Consume a late rejection (e.g. the timer firing after a failed navigate)
     // so it never surfaces as an unhandled rejection; the await below still
     // re-throws the real error on the awaited path.
-    loaded.catch(() => {});
+    navigated.catch(() => {});
     try {
       await send('Page.enable').catch(() => {});
       const res = await send('Page.navigate', { url });
       if (res?.errorText) throw new Error(`Navigation failed: ${res.errorText}`);
-      await loaded;
+      targetFrameId = typeof res?.frameId === 'string' ? res.frameId : undefined;
+      if (targetFrameId !== undefined && earlySameDocumentFrames.has(targetFrameId)) {
+        resolveNavigated();
+      }
+      await navigated;
       return `Navigated to ${url}.`;
     } finally {
       // Remove the listener and clear the timer on every exit path.
@@ -317,17 +338,64 @@ export async function cdpNavigate(tabId: number, url: string, signal?: AbortSign
 }
 
 interface KeyMeta {
-  named: boolean; // named (non-printable) key dispatched as a full keystroke
   key: string;
-  code: string;
-  keyCode: number;
+  code?: string;
+  keyCode?: number;
   text?: string; // text the key inserts via a 'char' event (Enter, Space)
 }
+
+// Chromium exposes Windows virtual-key codes for these physical US keyboard
+// positions. Shifted characters share the code and virtual key of their base
+// key; characters without a reliable physical mapping omit both fields.
+const printablePhysicalKeys: Record<string, Pick<KeyMeta, 'code' | 'keyCode'>> = {
+  '0': { code: 'Digit0', keyCode: 48 },
+  ')': { code: 'Digit0', keyCode: 48 },
+  '1': { code: 'Digit1', keyCode: 49 },
+  '!': { code: 'Digit1', keyCode: 49 },
+  '2': { code: 'Digit2', keyCode: 50 },
+  '@': { code: 'Digit2', keyCode: 50 },
+  '3': { code: 'Digit3', keyCode: 51 },
+  '#': { code: 'Digit3', keyCode: 51 },
+  '4': { code: 'Digit4', keyCode: 52 },
+  '$': { code: 'Digit4', keyCode: 52 },
+  '5': { code: 'Digit5', keyCode: 53 },
+  '%': { code: 'Digit5', keyCode: 53 },
+  '6': { code: 'Digit6', keyCode: 54 },
+  '^': { code: 'Digit6', keyCode: 54 },
+  '7': { code: 'Digit7', keyCode: 55 },
+  '&': { code: 'Digit7', keyCode: 55 },
+  '8': { code: 'Digit8', keyCode: 56 },
+  '*': { code: 'Digit8', keyCode: 56 },
+  '9': { code: 'Digit9', keyCode: 57 },
+  '(': { code: 'Digit9', keyCode: 57 },
+  '-': { code: 'Minus', keyCode: 189 },
+  '_': { code: 'Minus', keyCode: 189 },
+  '=': { code: 'Equal', keyCode: 187 },
+  '+': { code: 'Equal', keyCode: 187 },
+  '[': { code: 'BracketLeft', keyCode: 219 },
+  '{': { code: 'BracketLeft', keyCode: 219 },
+  ']': { code: 'BracketRight', keyCode: 221 },
+  '}': { code: 'BracketRight', keyCode: 221 },
+  '\\': { code: 'Backslash', keyCode: 220 },
+  '|': { code: 'Backslash', keyCode: 220 },
+  ';': { code: 'Semicolon', keyCode: 186 },
+  ':': { code: 'Semicolon', keyCode: 186 },
+  "'": { code: 'Quote', keyCode: 222 },
+  '"': { code: 'Quote', keyCode: 222 },
+  ',': { code: 'Comma', keyCode: 188 },
+  '<': { code: 'Comma', keyCode: 188 },
+  '.': { code: 'Period', keyCode: 190 },
+  '>': { code: 'Period', keyCode: 190 },
+  '/': { code: 'Slash', keyCode: 191 },
+  '?': { code: 'Slash', keyCode: 191 },
+  '`': { code: 'Backquote', keyCode: 192 },
+  '~': { code: 'Backquote', keyCode: 192 },
+};
 
 function keyMeta(key: string): KeyMeta {
   // A literal ' ' means the Space key (trim would erase it).
   const k = key === ' ' ? 'Space' : key.trim();
-  const named: Record<string, Omit<KeyMeta, 'named' | 'key'>> = {
+  const named: Record<string, Omit<KeyMeta, 'key'>> = {
     Enter: { code: 'Enter', keyCode: 13, text: '\r' },
     Tab: { code: 'Tab', keyCode: 9 },
     Escape: { code: 'Escape', keyCode: 27 },
@@ -344,30 +412,34 @@ function keyMeta(key: string): KeyMeta {
     ArrowRight: { code: 'ArrowRight', keyCode: 39 }
   };
   for (let i = 1; i <= 12; i++) named[`F${i}`] = { code: `F${i}`, keyCode: 111 + i };
-  if (named[k]) return { named: true, key: k, ...named[k] };
+  if (named[k]) return { key: k, ...named[k] };
   if (k.length !== 1) {
     throw new Error(
       `Unsupported key "${key}". Pass a single printable character or one of: ${Object.keys(named).join(', ')}.`,
     );
   }
-  // Printable character: Chromium inserts it only via a 'char' event carrying `text`.
+  // Printable characters carry text on the char event between keydown and keyup.
+  if (/^[a-z]$/i.test(k)) {
+    return {
+      key: k,
+      code: `Key${k.toUpperCase()}`,
+      keyCode: k.toUpperCase().charCodeAt(0),
+      text: k,
+    };
+  }
+  const physical = printablePhysicalKeys[k];
   return {
-    named: false,
     key: k,
-    code: `Key${k.toUpperCase()}`,
-    keyCode: k.toUpperCase().charCodeAt(0),
-    text: k
+    ...physical,
+    text: k,
   };
 }
 
-// Press a key. Named keys (Enter, Tab, Escape, Backspace, Delete, Home, End,
-// PageUp, PageDown, Space, arrows, F1-F12) are dispatched as a full keystroke
-// (rawKeyDown → char when the key produces text → keyUp) so framework
-// handlers (e.g. submit-on-Enter) fire. A single printable character is
-// inserted into the focused field via a 'char' event; any other
-// multi-character key name throws so the model can correct itself. When `id`
-// is given, the target element is focused first, so the key can't be dropped
-// if focus moved elsewhere.
+// Press a key as a full keystroke (rawKeyDown → char when the key produces text
+// → keyUp) so both shortcut handlers and text insertion work. Unsupported
+// multi-character names throw so the model can correct itself. When `id` is
+// given, the target element is focused first, so the key cannot be dropped if
+// focus moved elsewhere.
 export async function cdpPressKey(
   tabId: number,
   key: string,
@@ -383,16 +455,16 @@ export async function cdpPressKey(
     }
     checkAbort(signal);
     const meta = keyMeta(key);
-    if (meta.named) {
-      const base = { key: meta.key, code: meta.code, windowsVirtualKeyCode: meta.keyCode };
-      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
-      if (meta.text) {
-        await send('Input.dispatchKeyEvent', { type: 'char', ...base, text: meta.text });
-      }
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
-    } else {
-      await send('Input.dispatchKeyEvent', { type: 'char', text: meta.text });
+    const base = {
+      key: meta.key,
+      ...(meta.code !== undefined ? { code: meta.code } : {}),
+      ...(meta.keyCode !== undefined ? { windowsVirtualKeyCode: meta.keyCode } : {}),
+    };
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
+    if (meta.text) {
+      await send('Input.dispatchKeyEvent', { type: 'char', ...base, text: meta.text });
     }
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
     return `Pressed ${key}.`;
   }, signal);
 }

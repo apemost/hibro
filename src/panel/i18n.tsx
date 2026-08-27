@@ -51,6 +51,15 @@ export interface PanelMessages {
   preview: string;
   htmlPreview: string;
   invalidChart: (error: string) => string;
+  generatedImage: string;
+  remoteImage: string;
+  inlineImageInvalid: string;
+  remoteImageBlocked: string;
+  remoteImageDisclosure: string;
+  loadRemoteImage: (host: string) => string;
+  loadOnce: string;
+  imageLoading: string;
+  remoteImageLoadError: string;
   toolStatus: Record<ToolState, string>;
   localizeStatus: (status: string) => string;
 }
@@ -96,6 +105,15 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     preview: "Preview",
     htmlPreview: "HTML preview",
     invalidChart: (error) => `Invalid chart spec (${error}). Showing the source instead.`,
+    generatedImage: "Generated image",
+    remoteImage: "Remote image",
+    inlineImageInvalid: "This image asset could not be displayed safely.",
+    remoteImageBlocked: "This remote image address is blocked.",
+    remoteImageDisclosure: "Loading contacts this host and reveals your IP address.",
+    loadRemoteImage: (host) => `Load image from ${host}`,
+    loadOnce: "Load once",
+    imageLoading: "Loading image…",
+    remoteImageLoadError: "This image could not be loaded safely.",
     toolStatus: {
       "input-available": "Running",
       "output-available": "Completed",
@@ -143,6 +161,15 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     preview: "预览",
     htmlPreview: "HTML 预览",
     invalidChart: (error) => `图表配置无效（${error}），已显示源代码。`,
+    generatedImage: "生成的图片",
+    remoteImage: "远程图片",
+    inlineImageInvalid: "无法安全显示此图片资产。",
+    remoteImageBlocked: "此远程图片地址已被阻止。",
+    remoteImageDisclosure: "加载时会连接此主机，并向其暴露你的 IP 地址。",
+    loadRemoteImage: (host) => `从 ${host} 加载图片`,
+    loadOnce: "仅加载一次",
+    imageLoading: "正在加载图片…",
+    remoteImageLoadError: "无法安全加载此图片。",
     toolStatus: {
       "input-available": "运行中",
       "output-available": "已完成",

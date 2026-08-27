@@ -5,7 +5,7 @@ Hibro is an AI assistant for the Chrome and Edge side panel. It can answer quest
 ## What it does
 
 - Works with OpenAI-compatible services, OpenAI, and Anthropic.
-- Streams Markdown answers with diagrams, charts, code, and safe HTML previews.
+- Streams Markdown answers with diagrams, charts, validated image assets, code, and safe HTML previews.
 - Saves recent conversations and supports site-specific skills.
 - Keeps settings and history in browser extension storage.
 - Supports English and Simplified Chinese.

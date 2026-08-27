@@ -26,6 +26,7 @@ import { useInputHistory } from "./useInputHistory";
 import { deriveTitle } from "@/shared/conversations";
 import { PartStreamingContext } from "./partStreaming";
 import { PanelI18nProvider, usePanelI18n } from "./i18n";
+import { ImageAsset } from "./ImageAsset";
 
 const MAX_INPUT_HEIGHT = 400;
 const INPUT_RESIZE_STEP = 24;
@@ -47,6 +48,7 @@ function MessageParts({ parts, streaming }: { parts: HibroPart[]; streaming: boo
           return <MessageResponse key={i}>{p.text}</MessageResponse>;
         }
         if (p.type === "reasoning") return null;
+        if (p.type === "image-asset") return <ImageAsset key={i} part={p} />;
         return <Tool key={i} part={p} />;
       })}
     </PartStreamingContext.Provider>

@@ -17,6 +17,9 @@ import {
   readProviderConfig
 } from './shared/providers';
 import { ProviderVaultError } from './shared/providerVault';
+import { normalizeImageMediaType, decodeImageBase64 } from './shared/imageAssets';
+import { REMOTE_IMAGE_PORT } from './shared/remoteImages';
+import { attachRemoteImagePort } from './remoteImages';
 
 // Page perception does not need extension storage; keep it in trusted contexts.
 void chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
@@ -73,6 +76,10 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === REMOTE_IMAGE_PORT) {
+    attachRemoteImagePort(port);
+    return;
+  }
   if (port.name !== 'hibro-panel') return;
   let abortController: AbortController | null = null;
   // Drop late events from a request that has already been replaced.
@@ -166,7 +173,7 @@ async function getModel() {
     return openai.chat(profile.model);
   }
   const provider = createOpenAICompatible({
-    name: 'hibro',
+    name: 'openai-compatible',
     baseURL: profile.baseUrl!.replace(/\/+$/, ''),
     apiKey: profile.apiKey,
   });
@@ -468,6 +475,7 @@ async function handleSend(
     `Current page overview:\n${JSON.stringify(overview, null, 2)}`,
   ].join('\n\n');
   let full = '';
+  let sawImageAsset = false;
   // Set when the run ended because stopWhen hit the step cap with the model
   // still calling tools (as opposed to finishing or being stopped).
   let cappedByStepLimit = false;
@@ -493,6 +501,23 @@ async function handleSend(
         emit({ type: 'part-delta', partType: 'text', delta: part.text });
       } else if (part.type === 'reasoning-delta') {
         emit({ type: 'part-delta', partType: 'reasoning', delta: part.text });
+      } else if (part.type === 'file') {
+        const mediaType = normalizeImageMediaType(part.file.mediaType);
+        const base64 = part.file.base64;
+        const bytes = mediaType ? decodeImageBase64(base64, mediaType) : null;
+        if (mediaType && bytes) {
+          sawImageAsset = true;
+          emit({
+            type: 'part-add',
+            part: {
+              type: 'image-asset',
+              provenance: 'provider-inline',
+              mediaType,
+              base64,
+              byteLength: bytes.byteLength,
+            },
+          });
+        }
       } else if (part.type === 'error') {
         throw part.error instanceof Error ? part.error : new Error(String(part.error));
       }
@@ -528,7 +553,7 @@ async function handleSend(
         text: `Reached the maximum number of steps (${MAX_AGENT_STEPS}); the task may be incomplete — send a follow-up to continue.`,
       },
     });
-  } else if (!full.trim()) {
+  } else if (!full.trim() && !sawImageAsset) {
     emit({
       type: 'part-add',
       part: { type: 'text', text: '(The assistant finished without producing a final answer.)' },

@@ -68,6 +68,63 @@ body {
   height: 100%;
 }
 
+.image-asset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--muted);
+}
+
+.image-asset-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.image-asset-caption strong {
+  color: var(--foreground);
+}
+
+.image-asset-load {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+
+.image-asset-load:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.image-asset-error {
+  color: var(--destructive);
+}
+
+.image-asset-status {
+  color: var(--muted-foreground);
+}
+
+.message-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 70vh;
+  border-radius: var(--radius-md);
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;

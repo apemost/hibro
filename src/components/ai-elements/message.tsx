@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { chartRenderer } from "@/panel/ChartBlock";
 import { htmlRenderer } from "@/panel/HtmlBlock";
 import { hibroMermaid } from "@/panel/mermaidPlugin";
+import { RemoteMarkdownImage } from "@/panel/RemoteMarkdownImage";
 import { cjk } from "@streamdown/cjk";
 import { math } from "@streamdown/math";
 import type { UIMessage } from "ai";
@@ -53,10 +54,8 @@ export const MessageContent = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
-const BlockedRemoteImage = () => null;
-
 // Custom renderers add diagrams, charts, and sandboxed HTML previews. Images
-// in model Markdown are omitted so an answer cannot trigger a remote request.
+// in model Markdown remain inert until the user approves one guarded request.
 // Shiki is omitted to keep the extension bundle small, so code stays plain.
 const streamdownPlugins = {
   cjk,
@@ -74,7 +73,11 @@ export const MessageResponse = memo(
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
-      components={{ ...components, img: BlockedRemoteImage }}
+      components={
+        { ...components, img: RemoteMarkdownImage } as NonNullable<
+          MessageResponseProps["components"]
+        >
+      }
       plugins={streamdownPlugins}
     />
   ),

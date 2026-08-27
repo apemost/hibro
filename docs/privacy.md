@@ -11,7 +11,7 @@ Hibro still handles data on your device and sends some data directly to the LLM 
 Hibro stores the following data in your browser's local extension storage:
 
 - Provider profiles, including API keys, model names, and optional base URLs. The profiles are encrypted before storage.
-- Up to 10 recent conversations, including message text, reasoning, tool inputs and results, titles, timestamps, and the last page address used by each conversation.
+- Up to 10 recent conversations, including message text, reasoning, tool inputs and results, compatible provider-returned inline image assets, titles, timestamps, and the last page address used by each conversation.
 - Built-in skill preferences, user-created skill content, and interface language.
 - Your acknowledgement of the provider data-use notice.
 
@@ -38,13 +38,21 @@ The API key is sent as an authentication header, not as part of the chat prompt.
 
 The provider's privacy, security, and retention terms apply to these requests. A self-hosted OpenAI-compatible endpoint receives the same request data at the address you configure. Hibro does not send a second copy to the developer.
 
+## Remote image requests
+
+An image address written into a model response does not load automatically. Markdown shows an inactive card with the destination host. If you choose Load once, Hibro contacts that third-party host directly for that individual image. The host can receive your IP address, the requested address including its path or query parameters, TLS and network metadata, and ordinary browser request headers. Do not load an unfamiliar host or an address containing an identifier you do not want to disclose.
+
+Hibro accepts only credential-free HTTPS addresses with public-looking hostnames. It blocks literal IP addresses, localhost and special-use names, and all redirects. The request omits browser cookies and other credentials, sends no referrer, and accepts only a matching PNG, JPEG, or WebP response up to 5 MiB. Hibro does not operate a proxy, so it cannot hide your network address. It also cannot reliably determine before connecting whether a public-looking hostname resolves or rebinds to a private network address.
+
+After validation, the panel displays the downloaded bytes through a temporary local object address. Hibro removes that address when the image or conversation leaves the panel. The downloaded bytes and the one-time loading choice are not added to conversation history, so reopening the conversation requires another choice. This is separate from a compatible provider-returned inline image asset, which is part of the structured model response and is stored with that conversation.
+
 ## How Hibro uses data
 
 Hibro uses data only to provide the reading, chat, settings, history, skill, and page-action features the user requests. It does not sell data, use it for advertising or credit decisions, share it with data brokers, or allow developer staff to inspect it.
 
 Hibro's use of information complies with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including the Limited Use requirements.
 
-Model responses cannot automatically load remote Markdown or chart images. HTML previews are static and block scripts, forms, popups, same-origin access, and network requests. A preview can use inline styles and embedded data images or fonts.
+Model responses cannot automatically load Markdown image addresses. Each eligible remote Markdown image requires the one-time action described above. Mermaid and chart blocks reject remote image resources. HTML previews are static and block scripts, forms, popups, same-origin access, and network requests. A preview can use inline styles and embedded data images or fonts.
 
 ## Browser permissions
 
@@ -54,7 +62,7 @@ Hibro requests:
 - `storage` and `unlimitedStorage` to keep settings and recent conversations.
 - `scripting` to restore Hibro's bundled page reader on a supported page when it is missing.
 - `debugger` to send browser-level click, typing, keyboard, scroll, and navigation commands for page automation.
-- Access to all URLs so the bundled content script can read supported pages and the service worker can contact the provider address you configure.
+- Access to all URLs so the bundled content script can read supported pages, the service worker can contact the provider address you configure, and it can fetch an eligible third-party Markdown image after you choose Load once.
 
 The browser blocks extension access on protected pages such as `chrome://` pages and the browser's extension store. Hibro does not read page content at load time. It reads data after you make a request and only as the request needs it.
 

@@ -50,6 +50,17 @@ const FIXTURE_PAGE = `<!doctype html>
     <button id="go">Go</button>
     <p id="out"></p>
     <script>
+      window.hibroKeyEvents = [];
+      document.addEventListener('keydown', function (event) {
+        if (event.target && event.target.id === 'q') {
+          window.hibroKeyEvents.push('keydown:' + event.key);
+        }
+      });
+      document.addEventListener('keyup', function (event) {
+        if (event.target && event.target.id === 'q') {
+          window.hibroKeyEvents.push('keyup:' + event.key);
+        }
+      });
       document.getElementById('go').addEventListener('click', function () {
         document.getElementById('out').textContent =
           'You typed: ' + document.getElementById('q').value;

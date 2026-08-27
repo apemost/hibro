@@ -272,6 +272,9 @@ export function useHibroChat() {
   const activeIdRef = useRef<string>(state.activeId);
   const hydratedRef = useRef<boolean>(state.hydrated);
   const itemsRef = useRef<StoredConversation[]>([]);
+  // User actions may win hydration before the initial stored items are ready.
+  // Keep persistence gated separately so that early saves cannot replace them.
+  const startupStorageReadyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Last page used by this conversation, including successful navigation tools.
   const lastUrlRef = useRef<string | undefined>(undefined);
@@ -294,7 +297,7 @@ export function useHibroChat() {
 
   // Save immediately before a conversation change. Empty chats stay out of History.
   const persistNow = useCallback(async () => {
-    if (!hydratedRef.current) return;
+    if (!hydratedRef.current || !startupStorageReadyRef.current) return;
     const messages = messagesRef.current;
     const activeId = activeIdRef.current;
     if (messages.length === 0) {
@@ -333,7 +336,13 @@ export function useHibroChat() {
       const { items, activeId } = await readConversationState();
       itemsRef.current = items;
       setSummaries(summarize(items));
-      if (hydratedRef.current) return;
+      startupStorageReadyRef.current = true;
+      if (hydratedRef.current) {
+        // The user acted while startup was pending. Merge that authoritative
+        // in-memory thread into the stored snapshot now that it is safe.
+        await persistNow();
+        return;
+      }
       const active = activeId ? items.find((c) => c.id === activeId) : undefined;
       if (active) {
         lastUrlRef.current = active.lastUrl;
@@ -342,7 +351,7 @@ export function useHibroChat() {
         dispatch({ type: "hydrate", messages: [], activeId: activeIdRef.current });
       }
     })();
-  }, []);
+  }, [persistNow]);
 
   // Coalesce frequent streaming updates; transitions and unmount still flush.
   useEffect(() => {
@@ -472,6 +481,8 @@ export function useHibroChat() {
       const previousPageUrl = lastUrlRef.current;
       const currentUrl = tab.url || "";
       if (currentUrl) lastUrlRef.current = currentUrl;
+      // Keep the startup restore from observing a stale pre-dispatch ref.
+      hydratedRef.current = true;
       dispatch({ type: "send", text: trimmed });
       connect().postMessage({
         type: "send",
@@ -518,6 +529,7 @@ export function useHibroChat() {
       // Update refs before render so an early flush sees the new identity.
       activeIdRef.current = id;
       messagesRef.current = [];
+      hydratedRef.current = true;
       dispatch({ type: "new-chat", activeId: id });
       await writeActiveConversation(id);
     } finally {
@@ -578,8 +590,10 @@ export function useHibroChat() {
       if (transitioningRef.current) return;
       transitioningRef.current = true;
       try {
-        if (id === activeIdRef.current) abortRun();
+        const deletingActive = id === activeIdRef.current;
+        if (deletingActive) abortRun();
         cancelPendingSave();
+        if (!deletingActive) await persistNow();
         const { items } = await readConversationState();
         const next = items.filter((c) => c.id !== id);
         itemsRef.current = next;
@@ -611,7 +625,7 @@ export function useHibroChat() {
         transitioningRef.current = false;
       }
     },
-    [abortRun, cancelPendingSave]
+    [abortRun, cancelPendingSave, persistNow]
   );
 
   useEffect(
