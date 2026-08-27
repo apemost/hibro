@@ -18,12 +18,17 @@ It builds an isolated evaluation copy under `.local/tmp/eval-dist/`, opens a liv
 
 ## Run with a real model
 
+`pnpm eval` reads the Git-ignored `.env` file in the repository root. Shell variables take precedence. For example:
+
 ```bash
-HIBRO_EVAL_PROVIDER=anthropic \
-HIBRO_EVAL_API_KEY=sk-ant-... \
-HIBRO_EVAL_MODEL=claude-sonnet-5 \
-pnpm eval
+# .env
+HIBRO_EVAL_PROVIDER=openai-compatible
+HIBRO_EVAL_BASE_URL=https://api.example.com/v1
+HIBRO_EVAL_API_KEY=your-api-key
+HIBRO_EVAL_MODEL=your-function-calling-model
 ```
+
+Then run `pnpm eval`. You can also export the same variables in the shell instead of using `.env`.
 
 Configuration:
 
@@ -32,7 +37,7 @@ Configuration:
 | `HIBRO_EVAL_PROVIDER` | No | `anthropic`, `openai`, or `openai-compatible`. The default is `openai-compatible`. |
 | `HIBRO_EVAL_API_KEY` | Yes | API key for a real evaluation. |
 | `HIBRO_EVAL_MODEL` | No | Model name understood by the selected provider. |
-| `HIBRO_EVAL_BASE_URL` | No | Custom provider or proxy endpoint. |
+| `HIBRO_EVAL_BASE_URL` | Conditional | Required for `openai-compatible`; optional custom endpoint for `openai` or `anthropic`. |
 
 ## Evaluation cases
 

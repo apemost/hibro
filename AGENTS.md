@@ -27,7 +27,8 @@ pnpm build     # production build → dist/ (git-ignored)
 pnpm dev       # dev mode with HMR → load the same dist/
 pnpm typecheck # strict TS check (tsc --noEmit)
 pnpm test:e2e  # build + Playwright e2e (local mock AI; first run: playwright install chromium)
-pnpm eval      # isolated build + real-LLM run on live arXiv (needs HIBRO_EVAL_API_KEY; `--self-test` for a keyless wiring check)
+pnpm test:eval # eval-harness configuration regressions
+pnpm eval      # isolated build + real-LLM run on live arXiv (loads `.env`; `--self-test` is keyless)
 ```
 
 Load `dist/` via `chrome://extensions` → Developer mode → "Load unpacked".

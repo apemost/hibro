@@ -9,7 +9,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test:e2e": "pnpm build && playwright test",
-    "eval": "vite build --mode eval && node eval/run.mjs"
+    "test:eval": "node --test eval/*.test.mjs",
+    "eval": "vite build --mode eval && node --env-file-if-exists=.env eval/run.mjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",

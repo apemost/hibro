@@ -13,7 +13,7 @@
 //   HIBRO_EVAL_PROVIDER   anthropic | openai | openai-compatible   (default openai-compatible)
 //   HIBRO_EVAL_API_KEY    required for a real run
 //   HIBRO_EVAL_MODEL      e.g. claude-sonnet-5 / gpt-4o-mini        (provider-specific default)
-//   HIBRO_EVAL_BASE_URL   optional (proxy / openai-compatible endpoint)
+//   HIBRO_EVAL_BASE_URL   required for openai-compatible; optional for other providers
 
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -64,6 +64,35 @@ function defaultModel(provider) {
   if (provider === 'anthropic') return 'claude-sonnet-5';
   if (provider === 'openai') return 'gpt-4o-mini';
   return 'gpt-4o-mini';
+}
+
+function realProfileFromEnv() {
+  const provider = process.env.HIBRO_EVAL_PROVIDER || 'openai-compatible';
+  const apiKey = process.env.HIBRO_EVAL_API_KEY;
+  const baseUrl = process.env.HIBRO_EVAL_BASE_URL || '';
+  if (!apiKey) {
+    console.error(
+      'HIBRO_EVAL_API_KEY is required for a real eval.' +
+        (provider === 'openai-compatible'
+          ? ' HIBRO_EVAL_BASE_URL is also required for openai-compatible providers.'
+          : '') +
+        '\nHIBRO_EVAL_PROVIDER and HIBRO_EVAL_MODEL are optional.\n' +
+        'For a keyless harness check, run: pnpm eval -- --self-test'
+    );
+    process.exit(2);
+  }
+  if (provider === 'openai-compatible' && !baseUrl) {
+    console.error(
+      'HIBRO_EVAL_BASE_URL is required for openai-compatible providers. Add it to .env or export it before running pnpm eval.'
+    );
+    process.exit(2);
+  }
+  return {
+    provider,
+    baseUrl,
+    apiKey,
+    model: process.env.HIBRO_EVAL_MODEL || defaultModel(provider)
+  };
 }
 
 // --- Extension loading (mirror of e2e/fixtures.ts) ---
@@ -257,23 +286,9 @@ async function main() {
     tasks = [TASKS[0]]; // navigate, performed for real by the scripted "model"
     console.log(`[self-test] scripted mock on :${mock.port}; real navigate → ${ABS}`);
   } else {
-    const provider = process.env.HIBRO_EVAL_PROVIDER || 'openai-compatible';
-    const apiKey = process.env.HIBRO_EVAL_API_KEY;
-    if (!apiKey) {
-      console.error(
-        'Real eval needs credentials. Set HIBRO_EVAL_API_KEY (+ optional HIBRO_EVAL_PROVIDER / HIBRO_EVAL_MODEL / HIBRO_EVAL_BASE_URL).\n' +
-          'For a keyless harness check, run: pnpm eval -- --self-test'
-      );
-      process.exit(2);
-    }
-    profile = {
-      provider,
-      baseUrl: process.env.HIBRO_EVAL_BASE_URL || '',
-      apiKey,
-      model: process.env.HIBRO_EVAL_MODEL || defaultModel(provider)
-    };
+    profile = realProfileFromEnv();
     tasks = TASKS;
-    console.log(`[eval] provider=${provider} model=${profile.model}`);
+    console.log(`[eval] provider=${profile.provider} model=${profile.model}`);
   }
 
   const { ctx, extId } = await launchExtension();
