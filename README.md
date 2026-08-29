@@ -21,7 +21,7 @@ Load `dist/` as an unpacked extension, open Hibro from the browser toolbar, and 
 
 ## Documentation
 
-- [Documentation index](docs/README.md)
+- [Documentation index](docs/index.md)
 - [Getting started](docs/getting-started.md)
 - [Features](docs/features.md)
 - [Provider setup](docs/providers.md)

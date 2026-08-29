@@ -34,6 +34,8 @@ Hibro contacts the active provider directly. The provider receives only the data
 - Instructions from enabled skills that match the current page.
 - The configured model name and API credential needed to authenticate the request.
 
+Because requests go directly from your browser, a remote provider can receive your connection source IP address, TLS and network metadata, and ordinary request headers. Hibro does not separately read, derive, or store your location from this information.
+
 The API key is sent as an authentication header, not as part of the chat prompt. Remote provider URLs must use HTTPS. Plain HTTP is allowed only for a provider running on the same device through localhost or a loopback address.
 
 The provider's privacy, security, and retention terms apply to these requests. A self-hosted OpenAI-compatible endpoint receives the same request data at the address you configure. Hibro does not send a second copy to the developer.
@@ -68,4 +70,4 @@ The browser blocks extension access on protected pages such as `chrome://` pages
 
 ## Changes and questions
 
-Material changes to this policy will be published with an updated date. Questions or privacy concerns can be reported through the [Hibro issue tracker](https://github.com/apemost/hibro/issues).
+Material changes to this policy will be published with an updated date. Questions or privacy concerns can be reported to the Hibro maintainer.

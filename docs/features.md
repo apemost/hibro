@@ -93,7 +93,7 @@ A skill gives the assistant instructions for a website. Hibro includes read-only
 
 Enabled skills activate when their URL pattern matches the current page. Their instructions are included with the request to your selected provider. A skill does not run code by itself.
 
-See the [skill format guide](../skills/README.md) to write a built-in skill.
+See the [skill format guide](skills.md) to write a built-in skill.
 
 ## Restricted pages
 

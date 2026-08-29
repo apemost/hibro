@@ -7,8 +7,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "docs:dev": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build",
+    "docs:preview": "pnpm --dir docs preview",
     "typecheck": "tsc --noEmit",
     "test:e2e": "pnpm build && playwright test",
+    "test:docs": "node --test test/docs-build.test.mjs",
     "test:eval": "node --test eval/*.test.mjs",
     "eval": "vite build --mode eval && node --env-file-if-exists=.env eval/run.mjs"
   },

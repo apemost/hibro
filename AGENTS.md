@@ -12,6 +12,7 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 - TypeScript (strict; `pnpm typecheck` runs `tsc --noEmit`; `@types/chrome` for extension APIs)
 - pnpm (pinned via `packageManager` in `package.json`; do not use npm/yarn)
 - React 19 + Tailwind CSS v4 (shadcn-style design tokens) for the panel and options pages, via `@vitejs/plugin-react` + `@tailwindcss/vite` alongside CRXJS
+- VitePress 1.6 builds the public documentation site from `docs/`; the browser-extension Vite build remains separate
 - `ai` (Vercel AI SDK 7) + `@ai-sdk/openai-compatible` / `@ai-sdk/openai` / `@ai-sdk/anthropic` for model calls in the service worker. All panel messages run through one streaming tool-calling loop (`streamText` + `tools` + `stopWhen` / `isStepCount` in `handleSend`): the model decides per message whether to answer, read the page with perception tools, or act on it, so a **function-calling-capable model** is required for every conversation — the earlier JSON-action protocol and the chat/task intent router are both gone. `getModel` branches on the configured `provider` (`openai-compatible` default, `openai`, or `anthropic` for the Claude Messages API)
 - AI SDK v7 rejects `role: 'system'` entries in `messages`; pass the system prompt through the `instructions` option instead (see `callAI` in `src/background.ts`)
 - Page **actions** run over `chrome.debugger` CDP (real `Input.*` events, scroll-into-view + focus) in `src/cdp.ts`; page **reads / perception** (Markdown via `turndown`, structural overview, tagged interactive elements, viewport text, element detail) run in the content script (`src/content.ts`)
@@ -25,8 +26,12 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 pnpm install   # install dependencies
 pnpm build     # production build → dist/ (git-ignored)
 pnpm dev       # dev mode with HMR → load the same dist/
+pnpm docs:dev  # local VitePress documentation server
+pnpm docs:build # production documentation build → docs/.vitepress/dist/
+pnpm docs:preview # preview the built documentation site
 pnpm typecheck # strict TS check (tsc --noEmit)
 pnpm test:e2e  # build + Playwright e2e (local mock AI; first run: playwright install chromium)
+pnpm test:docs # build the real documentation artifact and verify public routes
 pnpm test:eval # eval-harness configuration regressions
 pnpm eval      # isolated build + real-LLM run on live arXiv (loads `.env`; `--self-test` is keyless)
 ```
@@ -36,19 +41,27 @@ Load `dist/` via `chrome://extensions` → Developer mode → "Load unpacked".
 ## Project structure
 
 ```
+pnpm-workspace.yaml # workspace boundary for the extension and documentation site
 manifest.json       # MV3 manifest: debugger + scripting + sidePanel + storage permissions, <all_urls> host
 vite.config.js      # Vite + CRXJS config
+.github/
+└── workflows/
+    └── docs.yml        # VitePress build and GitHub Pages artifact deployment
 docs/
-├── README.md           # Documentation index
+├── index.md            # Documentation site index
+├── package.json        # Isolated VitePress dependency and site commands
+├── .vitepress/
+│   └── config.mts      # Site navigation, local search, and custom-domain base
 ├── features.md         # Community guide to user-facing behavior
 ├── getting-started.md  # Install and first-use guide
 ├── privacy.md          # Stored data, provider requests, and browser permissions
 ├── providers.md        # Provider profile setup
-└── troubleshooting.md  # Common setup and page-access problems
+├── troubleshooting.md  # Common setup and page-access problems
+└── skills.md           # Agent Skills format and built-in skill guide
 public/
 └── icons/          # Extension icons: icon.svg master + icon-16/32/48/128.png regenerated on change
 skills/
-└── README.md       # Agent Skills (SKILL.md) format reference; built-in skills live here as <name>/SKILL.md
+└── <name>/SKILL.md # Built-in Agent Skills bundled with the extension
 src/
 ├── background.ts        # Service worker: config resolution, the streaming tool-calling assistant loop
 │                        # (streamText + tools + stopWhen; metadata-only page seed + page-change marker),
@@ -95,14 +108,19 @@ e2e/
                          # reasoning readout / task / skills / page metadata & page-change marker /
                          # message actions / error card / providers)
 eval/
+├── README.md            # Maintainer guide for the real-model evaluation harness
 └── run.mjs              # Real LLM-driven agent eval on live arXiv (mock.ts covers mechanics; this
                          # drives a real function-calling model and asserts outcomes). Gated on
                          # HIBRO_EVAL_*.
+test/
+└── docs-build.test.mjs  # Real VitePress artifact and public-route regression
 ```
 
 ## Conventions
 
 User-facing behavior lives in `docs/features.md`; update it when behavior changes. Keep setup and project orientation in `README.md` and data handling in `docs/privacy.md`.
+
+- **Documentation site**: VitePress builds `docs/` for the custom-domain root and GitHub Actions deploys only `docs/.vitepress/dist/`. The site is public product documentation for Hibro users and the open-source community. Keep user installation, configuration, behavior, privacy, troubleshooting, and Skill guidance in `docs/`. Maintainer-only operational guides stay beside the tool they describe, such as `eval/README.md`, and do not belong in site navigation or public-route tests. Keep `pnpm test:docs` green when changing site content, navigation, or build configuration.
 
 - **AI config**: named provider profiles (`id` / `name` / `provider` / `baseUrl` / `apiKey` / `model`) are serialized into a versioned AES-GCM envelope at `chrome.storage.local.hibroProviders`; `activeProviderId` stays plaintext because it is an opaque selector. `src/shared/providerVault.ts` keeps the non-exportable key in extension-origin IndexedDB (`hibroVault` / `keys` / `provider-profiles:v1`) and uses a fresh 96-bit IV plus fixed AAD on every write. `src/shared/providers.ts` owns storage, active selection, and one-time migration of plaintext `hibroProviders` and legacy `hibroConfig`; consumers must call `readProviderConfig()` after storage changes rather than casting the envelope. Never create a new key when ciphertext already exists, overwrite unreadable storage, or hardcode credentials. Three provider types: `openai-compatible` (default) / `openai` / `anthropic`.
 - **Manifest `key`**: pins the extension ID; do not remove it (the e2e fixtures derive the ID from it).

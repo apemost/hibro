@@ -28,15 +28,20 @@ Doc map:
 
 - `AGENTS.md`: agent/maintainer conventions, guardrails, and terse pointers to `docs/`. Update it when the tech stack, commands, structure, or conventions change.
 - `README.md`: user-facing pitch and quick start. Nothing else belongs there.
+- `docs/index.md`: public documentation index and user-oriented navigation.
 - `docs/features.md`: community-facing feature behavior and messaging protocols. Update it in the same change that alters the behavior it documents.
 - `docs/getting-started.md`: installation and first use.
 - `docs/providers.md`: provider profile requirements and selection.
 - `docs/privacy.md`: local storage, provider requests, and permissions.
+- `docs/skills.md`: user-facing Skill format and behavior.
 - `docs/troubleshooting.md`: common user problems and practical fixes.
+- `eval/README.md`: maintainer guide for running the real-model evaluation harness.
 
 Placement rules:
 
-- `docs/` is written for the open-source community. Maintainer-only operational detail (icon regeneration, e2e fixture internals) stays in `AGENTS.md`.
+- `docs/` is public product documentation for Hibro users and the open-source community. Prioritize installation, configuration, product behavior, privacy, troubleshooting, and user-extensible features.
+- Maintainer-only operational guides stay beside the tool they describe, such as `eval/README.md`. Repository-wide maintainer constraints stay in `AGENTS.md`.
+- Put contributor material on the public site only when it is intentionally organized as a developer guide. Do not place maintainer runbooks under general user navigation.
 - Guardrails that must not be missed (the hard rules above) stay in `AGENTS.md` even when the related detail moves to `docs/`.
 
 Style rules:

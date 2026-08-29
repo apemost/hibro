@@ -1,0 +1,7 @@
+packages:
+  - docs
+
+resolvePeersFromWorkspaceRoot: false
+
+allowBuilds:
+  esbuild: true
