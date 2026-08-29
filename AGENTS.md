@@ -25,11 +25,13 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 ```bash
 pnpm install   # install dependencies
 pnpm build     # production build → dist/ (git-ignored)
+pnpm package:extension -- <tag> [source] [output] # package a built extension as a tag-named ZIP
 pnpm dev       # dev mode with HMR → load the same dist/
 pnpm docs:dev  # local VitePress documentation server
 pnpm docs:build # production documentation build → docs/.vitepress/dist/
 pnpm docs:preview # preview the built documentation site
 pnpm typecheck # strict TS check (tsc --noEmit)
+pnpm test:package # verify tag-based extension ZIP packaging
 pnpm test:e2e  # build + Playwright e2e (local mock AI; first run: playwright install chromium)
 pnpm test:docs # build the real documentation artifact and verify public routes
 pnpm test:eval # eval-harness configuration regressions
@@ -46,7 +48,8 @@ manifest.json       # MV3 manifest: debugger + scripting + sidePanel + storage p
 vite.config.js      # Vite + CRXJS config
 .github/
 └── workflows/
-    └── docs.yml        # VitePress build and GitHub Pages artifact deployment
+    ├── docs.yml        # VitePress build and GitHub Pages artifact deployment
+    └── package.yml     # tag-triggered extension ZIP packaging
 docs/
 ├── index.md            # Documentation site index
 ├── package.json        # Isolated VitePress dependency and site commands
@@ -60,6 +63,8 @@ docs/
 └── skills.md           # Agent Skills format and built-in skill guide
 public/
 └── icons/          # Extension icons: icon.svg master + icon-16/32/48/128.png regenerated on change
+scripts/
+└── package-extension.mjs # validates a tag and packages dist contents at the ZIP root
 skills/
 └── <name>/SKILL.md # Built-in Agent Skills bundled with the extension
 src/
@@ -113,7 +118,8 @@ eval/
                          # drives a real function-calling model and asserts outcomes). Gated on
                          # HIBRO_EVAL_*.
 test/
-└── docs-build.test.mjs  # Real VitePress artifact and public-route regression
+├── docs-build.test.mjs  # Real VitePress artifact and public-route regression
+└── package-extension.test.mjs # Real ZIP layout and tag-safety regressions
 ```
 
 ## Conventions

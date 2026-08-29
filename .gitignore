@@ -159,6 +159,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+# Extension packages
+/releases/
+
 # Playwright
 test-results/
 playwright-report/
