@@ -1,7 +1,7 @@
 // Floating Copy and Explain actions for completed conversation messages.
 // Interactive message content keeps its normal click behavior.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePanelI18n } from "./i18n";
 
 interface ExplainResponse {
@@ -22,8 +22,6 @@ interface Pill extends Anchor {
 }
 
 interface Card extends Anchor {
-  placeBelow: boolean;
-  placeAbove: boolean;
   loading: boolean;
   result: string;
 }
@@ -32,9 +30,36 @@ interface Card extends Anchor {
 const clampLeft = (x: number): number =>
   Math.max(76, Math.min(x, window.innerWidth - 76));
 
-const PLACE_BELOW_THRESHOLD = 44;
-const CARD_MIN_ROOM = 200;
+const PILL_PLACE_BELOW_THRESHOLD = 44;
+const CARD_EDGE_GAP = 8;
+const CARD_ANCHOR_GAP = 6;
 const COPIED_MS = 1200;
+
+function clampCardCoordinate(preferred: number, size: number, viewportSize: number): number {
+  const maximum = Math.max(CARD_EDGE_GAP, viewportSize - size - CARD_EDGE_GAP);
+  return Math.min(Math.max(preferred, CARD_EDGE_GAP), maximum);
+}
+
+function placeCardWithinViewport(element: HTMLDivElement, anchor: Anchor): void {
+  const rect = element.getBoundingClientRect();
+  const left = clampCardCoordinate(anchor.left - rect.width / 2, rect.width, window.innerWidth);
+  const below = anchor.bottom + CARD_ANCHOR_GAP;
+  const above = anchor.top - rect.height - CARD_ANCHOR_GAP;
+  const maximumTop = window.innerHeight - rect.height - CARD_EDGE_GAP;
+  const fitsBelow = below <= maximumTop;
+  const fitsAbove = above >= CARD_EDGE_GAP;
+  const preferredTop = fitsBelow
+    ? below
+    : fitsAbove
+      ? above
+      : anchor.top > window.innerHeight - anchor.bottom
+        ? above
+        : below;
+
+  element.style.left = `${left}px`;
+  element.style.top = `${clampCardCoordinate(preferredTop, rect.height, window.innerHeight)}px`;
+  element.style.visibility = "visible";
+}
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -165,6 +190,20 @@ export function MessageActions() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [card]);
 
+  useLayoutEffect(() => {
+    const element = cardRef.current;
+    if (!card || !element) return;
+    const update = () => placeCardWithinViewport(element, card);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [card]);
+
   const onCopy = async (): Promise<void> => {
     if (!pill) return;
     const ok = await copyText(pill.text);
@@ -181,8 +220,6 @@ export function MessageActions() {
       bottom,
       left,
       text,
-      placeBelow: top < PLACE_BELOW_THRESHOLD,
-      placeAbove: window.innerHeight - bottom < CARD_MIN_ROOM,
       loading: true,
       result: ""
     });
@@ -200,7 +237,7 @@ export function MessageActions() {
     }
   };
 
-  const pillBelow = pill ? pill.top < PLACE_BELOW_THRESHOLD : false;
+  const pillBelow = pill ? pill.top < PILL_PLACE_BELOW_THRESHOLD : false;
 
   return (
     <>
@@ -232,11 +269,7 @@ export function MessageActions() {
         <div
           ref={cardRef}
           data-explain-result
-          className={`selection-explain-card${card.placeAbove ? " above" : ""}`}
-          style={{
-            top: `${card.placeAbove ? card.top : card.bottom}px`,
-            left: `${card.left}px`
-          }}
+          className="selection-explain-card"
         >
           <div className="selection-explain-card-head">
             <span className="selection-explain-quote">{card.text}</span>

@@ -2336,15 +2336,34 @@ for (const s of BUILTIN_SITE_SKILLS) {
 
 test('selection pill copies and explains a selection', async ({ browserContext, extensionId }) => {
   const { fixture, panel } = await openPanelOnFixture(browserContext, extensionId);
-  await panel.fill('#input', 'What is this page about?');
+  await panel.setViewportSize({ width: 320, height: 720 });
+  const edgePrompt = `Edge ${'selection '.repeat(30)}`.trim();
+  await panel.fill('#input', edgePrompt);
   await panel.click('#sendBtn');
   const last = panel.locator('#log .msg.assistant').last();
   await expect(last).toContainText('streaming mock answer', { timeout: 30_000 });
   await expect(panel.locator('#sendBtn')).toBeVisible();
   const explainCalls = mock.stats.explain;
-  // Selecting text in a message reveals the floating pill with Copy (left) and
-  // Explain (right).
-  await last.locator('.msg-text').selectText();
+  // The wide user bubble puts its first word beside the left panel edge. Its
+  // selection reveals the floating Copy and Explain pill.
+  await panel.bringToFront();
+  const userMessage = panel.locator('#log .msg.user').last();
+  const selectedText = await userMessage.locator('.msg-text').evaluate(async (message) => {
+    const node = message.firstChild;
+    if (!node?.textContent) throw new Error('User message text was not found.');
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, 'Edge'.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    const selected = selection?.toString() ?? '';
+    document.dispatchEvent(new Event('selectionchange'));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return selected;
+  });
+  expect(selectedText).toBe('Edge');
   const copyBtn = panel.locator('.action-pill [data-action="copy"]');
   const explainBtn = panel.locator('.action-pill [data-action="explain"]');
   await expect(copyBtn).toBeVisible();
@@ -2371,13 +2390,19 @@ test('selection pill copies and explains a selection', async ({ browserContext, 
     }
     return '';
   });
-  expect(clip).toContain('streaming mock answer');
+  expect(clip).toBe(selectedText);
   // Explain sends the selection via the hibro:explain runtime message.
   await panel.bringToFront();
   await explainBtn.click();
   await expect(panel.locator('[data-explain-result]')).toContainText('mock explanation', {
     timeout: 30_000
   });
+  const cardBox = (await panel.locator('[data-explain-result]').boundingBox())!;
+  const viewport = panel.viewportSize()!;
+  expect(cardBox.x).toBeGreaterThanOrEqual(8);
+  expect(cardBox.y).toBeGreaterThanOrEqual(8);
+  expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewport.width - 8);
+  expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(viewport.height - 8);
   expect(mock.stats.explain).toBe(explainCalls + 1);
   await panel.close();
   await fixture.close();
