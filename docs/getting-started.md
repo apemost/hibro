@@ -1,33 +1,21 @@
 # Getting started
 
-Hibro currently installs from source as an unpacked Chrome or Edge extension.
+Hibro is available from the Chrome Web Store.
 
 ## Requirements
 
 You need:
 
-- Chrome or Edge with extension developer mode enabled.
-- pnpm 11, as pinned in `package.json`.
+- Chrome or Edge.
 - An API key and a model that supports function calling.
 
 Hibro uses model tools for page questions as well as page actions. A chat-only model will not work reliably.
 
-## Build the extension
+## Install from the Chrome Web Store
 
-```bash
-pnpm install
-pnpm build
-```
-
-The build creates the `dist/` directory.
-
-## Load it in the browser
-
-1. Open `chrome://extensions` or `edge://extensions`.
-2. Turn on Developer mode.
-3. Choose Load unpacked.
-4. Select the repository's `dist/` directory.
-5. Pin Hibro to the browser toolbar if you want quick access.
+1. Open [Hibro in the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije).
+2. Choose the install action and approve the browser prompt.
+3. Pin Hibro to the browser toolbar if you want quick access.
 
 Click the Hibro toolbar button to open the side panel.
 

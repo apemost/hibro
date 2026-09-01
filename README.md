@@ -12,12 +12,16 @@ Hibro is an AI assistant for the Chrome and Edge side panel. It can answer quest
 
 ## Quick start
 
+Install [Hibro from the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije). Open Hibro from the browser toolbar, then add an AI provider from Settings. The selected model must support function calling.
+
+To build Hibro from source for local development:
+
 ```bash
 pnpm install
 pnpm build
 ```
 
-Load `dist/` as an unpacked extension, open Hibro from the browser toolbar, and add an AI provider from Settings. The selected model must support function calling.
+Load `dist/` as an unpacked extension.
 
 ## Documentation
 

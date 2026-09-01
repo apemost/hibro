@@ -31,9 +31,3 @@ Built-in skills live in `skills/<name>/SKILL.md` and are bundled with the extens
 User skills are created and managed in Settings. They use the same fields and stay in extension storage.
 
 Hibro activates every enabled skill whose URL pattern matches the active page. The matching instructions are included in the request to the selected AI provider. Skills do not run code by themselves.
-
-## Add a built-in skill
-
-Create `skills/<name>/SKILL.md`. Keep all required guidance in that file because supporting folders and reference files are not bundled.
-
-Run `pnpm typecheck`, `pnpm build`, and `pnpm test:e2e` before submitting the new skill.
