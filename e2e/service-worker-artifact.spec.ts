@@ -7,8 +7,13 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(dirname, '..', 'dist');
 
 test('service worker bundle uses only static imports', () => {
-  const loader = readFileSync(path.join(dist, 'service-worker-loader.js'), 'utf8');
-  const workerPath = loader.match(/['"]\.\/(assets\/background[^'"]+\.js)['"]/)?.[1];
+  const loader = readFileSync(
+    path.join(dist, 'service-worker-loader.js'),
+    'utf8',
+  );
+  const workerPath = loader.match(
+    /['"]\.\/(assets\/background[^'"]+\.js)['"]/,
+  )?.[1];
   expect(workerPath).toBeTruthy();
 
   const worker = readFileSync(path.join(dist, workerPath!), 'utf8');

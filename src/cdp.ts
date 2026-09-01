@@ -75,7 +75,7 @@ async function withDebugger<T>(
           chrome.debugger.sendCommand(target(tabId), method, params ?? {}),
           COMMAND_TIMEOUT_MS,
           `CDP command ${method} did not finish within ${COMMAND_TIMEOUT_MS / 1000}s; the page may be unresponsive.`,
-        )
+        ),
       );
     } finally {
       await withTimeout(
@@ -93,7 +93,10 @@ async function withDebugger<T>(
 // forever: resolves when `prior` settles (a failed predecessor still yields
 // the turn), rejects on timeout or abort so a wedged holder or a stopped run
 // can't block the queue permanently.
-function waitForTurn(prior: Promise<unknown>, signal?: AbortSignal): Promise<void> {
+function waitForTurn(
+  prior: Promise<unknown>,
+  signal?: AbortSignal,
+): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const settle = (fn: () => void) => {
       clearTimeout(timer);
@@ -103,7 +106,11 @@ function waitForTurn(prior: Promise<unknown>, signal?: AbortSignal): Promise<voi
     const timer = setTimeout(
       () =>
         settle(() =>
-          reject(new Error('The previous action on this tab did not finish in time; try again.')),
+          reject(
+            new Error(
+              'The previous action on this tab did not finish in time; try again.',
+            ),
+          ),
         ),
       QUEUE_WAIT_TIMEOUT_MS,
     );
@@ -127,9 +134,13 @@ interface NodeResult {
 async function resolveNodeId(send: Send, id: number | string): Promise<number> {
   const doc = await send('DOM.getDocument', { depth: 0 });
   const rootId = doc?.root?.nodeId;
-  if (!rootId) throw new Error('Could not read the page DOM; retry perception.');
+  if (!rootId)
+    throw new Error('Could not read the page DOM; retry perception.');
   const selector = `[data-hibro-id="${String(id).replace(/"/g, '')}"]`;
-  const res = (await send('DOM.querySelector', { nodeId: rootId, selector })) as NodeResult;
+  const res = (await send('DOM.querySelector', {
+    nodeId: rootId,
+    selector,
+  })) as NodeResult;
   if (!res?.nodeId) {
     throw new Error(
       `Element #${id} was not found on the page. Call list_interactive_elements to get fresh ids, then retry.`,
@@ -143,10 +154,14 @@ interface BoxModel {
 }
 
 // Center (CSS pixels) of an element's content box, for input dispatch.
-async function boxCenter(send: Send, nodeId: number): Promise<{ x: number; y: number }> {
+async function boxCenter(
+  send: Send,
+  nodeId: number,
+): Promise<{ x: number; y: number }> {
   const model = (await send('DOM.getBoxModel', { nodeId })) as BoxModel;
   const c = model?.model?.content;
-  if (!c || c.length < 8) throw new Error('Element has no visible box; it may be hidden.');
+  if (!c || c.length < 8)
+    throw new Error('Element has no visible box; it may be hidden.');
   const xs = [c[0], c[2], c[4], c[6]];
   const ys = [c[1], c[3], c[5], c[7]];
   return {
@@ -173,19 +188,27 @@ async function mouse(
 }
 
 // Click an element with a trusted mouse sequence at its center.
-export async function cdpClick(tabId: number, id: number | string, signal?: AbortSignal): Promise<string> {
+export async function cdpClick(
+  tabId: number,
+  id: number | string,
+  signal?: AbortSignal,
+): Promise<string> {
   checkAbort(signal);
-  return withDebugger(tabId, async (send) => {
-    const nodeId = await resolveNodeId(send, id);
-    await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
-    await send('DOM.focus', { nodeId }).catch(() => {});
-    const { x, y } = await boxCenter(send, nodeId);
-    checkAbort(signal);
-    await mouse(send, x, y, 'mouseMoved');
-    await mouse(send, x, y, 'mousePressed');
-    await mouse(send, x, y, 'mouseReleased');
-    return `Clicked element #${id} at (${Math.round(x)}, ${Math.round(y)}).`;
-  }, signal);
+  return withDebugger(
+    tabId,
+    async (send) => {
+      const nodeId = await resolveNodeId(send, id);
+      await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
+      await send('DOM.focus', { nodeId }).catch(() => {});
+      const { x, y } = await boxCenter(send, nodeId);
+      checkAbort(signal);
+      await mouse(send, x, y, 'mouseMoved');
+      await mouse(send, x, y, 'mousePressed');
+      await mouse(send, x, y, 'mouseReleased');
+      return `Clicked element #${id} at (${Math.round(x)}, ${Math.round(y)}).`;
+    },
+    signal,
+  );
 }
 
 interface TypeArgs {
@@ -198,26 +221,36 @@ interface TypeArgs {
 // after focusing and moving the caret to the end, so it appends to existing
 // text and works for <input>, <textarea>, and contenteditable. Submit
 // optionally dispatches Enter afterwards.
-export async function cdpType(tabId: number, args: TypeArgs, signal?: AbortSignal): Promise<string> {
+export async function cdpType(
+  tabId: number,
+  args: TypeArgs,
+  signal?: AbortSignal,
+): Promise<string> {
   const { id, text, submit } = args;
   checkAbort(signal);
-  return withDebugger(tabId, async (send) => {
-    const nodeId = await resolveNodeId(send, id);
-    await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
-    await send('DOM.focus', { nodeId });
-    checkAbort(signal);
-    await moveCaretToEnd(send, nodeId);
-    await send('Input.insertText', { text });
-    if (submit) await pressEnter(send);
-    return `Typed ${text.length} character(s) into element #${id}${submit ? ' and pressed Enter' : ''}.`;
-  }, signal);
+  return withDebugger(
+    tabId,
+    async (send) => {
+      const nodeId = await resolveNodeId(send, id);
+      await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
+      await send('DOM.focus', { nodeId });
+      checkAbort(signal);
+      await moveCaretToEnd(send, nodeId);
+      await send('Input.insertText', { text });
+      if (submit) await pressEnter(send);
+      return `Typed ${text.length} character(s) into element #${id}${submit ? ' and pressed Enter' : ''}.`;
+    },
+    signal,
+  );
 }
 
 // Move the caret to the end of the field so insertText truly appends: a
 // programmatic focus leaves the caret at the start (or a selection, which
 // insertText would replace). Best-effort: on failure typing still proceeds.
 async function moveCaretToEnd(send: Send, nodeId: number): Promise<void> {
-  const resolved = await send('DOM.resolveNode', { nodeId }).catch(() => undefined);
+  const resolved = await send('DOM.resolveNode', { nodeId }).catch(
+    () => undefined,
+  );
   const objectId = resolved?.object?.objectId;
   if (!objectId) return;
   await send('Runtime.callFunctionOn', {
@@ -271,9 +304,15 @@ interface ScrollArgs {
 
 // Scroll the page by a delta, or scroll a selector-matched element into view.
 // Forwards the abort signal so Stop can cancel an in-flight scroll.
-export async function cdpScroll(tabId: number, args: ScrollArgs, signal?: AbortSignal): Promise<string> {
+export async function cdpScroll(
+  tabId: number,
+  args: ScrollArgs,
+  signal?: AbortSignal,
+): Promise<string> {
   const direction = args.direction === 'up' ? 'up' : 'down';
-  const amount = Number.isFinite(args.amount) ? Math.abs(args.amount as number) : 600;
+  const amount = Number.isFinite(args.amount)
+    ? Math.abs(args.amount as number)
+    : 600;
   const delta = direction === 'up' ? -amount : amount;
   if (args.selector) {
     const sel = JSON.stringify(args.selector);
@@ -288,53 +327,71 @@ export async function cdpScroll(tabId: number, args: ScrollArgs, signal?: AbortS
 // navigation so the next perception call sees the committed location.
 const NAVIGATE_TIMEOUT_MS = 15000;
 
-export async function cdpNavigate(tabId: number, url: string, signal?: AbortSignal): Promise<string> {
+export async function cdpNavigate(
+  tabId: number,
+  url: string,
+  signal?: AbortSignal,
+): Promise<string> {
   checkAbort(signal);
-  return withDebugger(tabId, async (send) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let targetFrameId: string | undefined;
-    const earlySameDocumentFrames = new Set<string>();
-    let resolveNavigated!: () => void;
-    let onEvent: ((source: Debuggee, method: string, params?: object) => void) | undefined;
-    const navigated = new Promise<void>((resolve, reject) => {
-      resolveNavigated = resolve;
-      timer = setTimeout(() => {
-        reject(new Error('Navigation timed out waiting for the page to load.'));
-      }, NAVIGATE_TIMEOUT_MS);
-      onEvent = (source, method, params) => {
-        if (source.tabId !== tabId) return;
-        if (method === 'Page.loadEventFired') {
-          resolve();
-          return;
+  return withDebugger(
+    tabId,
+    async (send) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let targetFrameId: string | undefined;
+      const earlySameDocumentFrames = new Set<string>();
+      let resolveNavigated!: () => void;
+      let onEvent:
+        | ((source: Debuggee, method: string, params?: object) => void)
+        | undefined;
+      const navigated = new Promise<void>((resolve, reject) => {
+        resolveNavigated = resolve;
+        timer = setTimeout(() => {
+          reject(
+            new Error('Navigation timed out waiting for the page to load.'),
+          );
+        }, NAVIGATE_TIMEOUT_MS);
+        onEvent = (source, method, params) => {
+          if (source.tabId !== tabId) return;
+          if (method === 'Page.loadEventFired') {
+            resolve();
+            return;
+          }
+          if (method !== 'Page.navigatedWithinDocument') return;
+          const frameId = (params as { frameId?: unknown } | undefined)
+            ?.frameId;
+          if (typeof frameId !== 'string') return;
+          if (targetFrameId === undefined) earlySameDocumentFrames.add(frameId);
+          else if (frameId === targetFrameId) resolve();
+        };
+        chrome.debugger.onEvent.addListener(onEvent);
+      });
+      // Consume a late rejection (e.g. the timer firing after a failed navigate)
+      // so it never surfaces as an unhandled rejection; the await below still
+      // re-throws the real error on the awaited path.
+      navigated.catch(() => {});
+      try {
+        await send('Page.enable').catch(() => {});
+        const res = await send('Page.navigate', { url });
+        if (res?.errorText)
+          throw new Error(`Navigation failed: ${res.errorText}`);
+        targetFrameId =
+          typeof res?.frameId === 'string' ? res.frameId : undefined;
+        if (
+          targetFrameId !== undefined &&
+          earlySameDocumentFrames.has(targetFrameId)
+        ) {
+          resolveNavigated();
         }
-        if (method !== 'Page.navigatedWithinDocument') return;
-        const frameId = (params as { frameId?: unknown } | undefined)?.frameId;
-        if (typeof frameId !== 'string') return;
-        if (targetFrameId === undefined) earlySameDocumentFrames.add(frameId);
-        else if (frameId === targetFrameId) resolve();
-      };
-      chrome.debugger.onEvent.addListener(onEvent);
-    });
-    // Consume a late rejection (e.g. the timer firing after a failed navigate)
-    // so it never surfaces as an unhandled rejection; the await below still
-    // re-throws the real error on the awaited path.
-    navigated.catch(() => {});
-    try {
-      await send('Page.enable').catch(() => {});
-      const res = await send('Page.navigate', { url });
-      if (res?.errorText) throw new Error(`Navigation failed: ${res.errorText}`);
-      targetFrameId = typeof res?.frameId === 'string' ? res.frameId : undefined;
-      if (targetFrameId !== undefined && earlySameDocumentFrames.has(targetFrameId)) {
-        resolveNavigated();
+        await navigated;
+        return `Navigated to ${url}.`;
+      } finally {
+        // Remove the listener and clear the timer on every exit path.
+        if (timer !== undefined) clearTimeout(timer);
+        if (onEvent) chrome.debugger.onEvent.removeListener(onEvent);
       }
-      await navigated;
-      return `Navigated to ${url}.`;
-    } finally {
-      // Remove the listener and clear the timer on every exit path.
-      if (timer !== undefined) clearTimeout(timer);
-      if (onEvent) chrome.debugger.onEvent.removeListener(onEvent);
-    }
-  }, signal);
+    },
+    signal,
+  );
 }
 
 interface KeyMeta {
@@ -347,7 +404,10 @@ interface KeyMeta {
 // Chromium exposes Windows virtual-key codes for these physical US keyboard
 // positions. Shifted characters share the code and virtual key of their base
 // key; characters without a reliable physical mapping omit both fields.
-const printablePhysicalKeys: Record<string, Pick<KeyMeta, 'code' | 'keyCode'>> = {
+const printablePhysicalKeys: Record<
+  string,
+  Pick<KeyMeta, 'code' | 'keyCode'>
+> = {
   '0': { code: 'Digit0', keyCode: 48 },
   ')': { code: 'Digit0', keyCode: 48 },
   '1': { code: 'Digit1', keyCode: 49 },
@@ -357,7 +417,7 @@ const printablePhysicalKeys: Record<string, Pick<KeyMeta, 'code' | 'keyCode'>> =
   '3': { code: 'Digit3', keyCode: 51 },
   '#': { code: 'Digit3', keyCode: 51 },
   '4': { code: 'Digit4', keyCode: 52 },
-  '$': { code: 'Digit4', keyCode: 52 },
+  $: { code: 'Digit4', keyCode: 52 },
   '5': { code: 'Digit5', keyCode: 53 },
   '%': { code: 'Digit5', keyCode: 53 },
   '6': { code: 'Digit6', keyCode: 54 },
@@ -369,7 +429,7 @@ const printablePhysicalKeys: Record<string, Pick<KeyMeta, 'code' | 'keyCode'>> =
   '9': { code: 'Digit9', keyCode: 57 },
   '(': { code: 'Digit9', keyCode: 57 },
   '-': { code: 'Minus', keyCode: 189 },
-  '_': { code: 'Minus', keyCode: 189 },
+  _: { code: 'Minus', keyCode: 189 },
   '=': { code: 'Equal', keyCode: 187 },
   '+': { code: 'Equal', keyCode: 187 },
   '[': { code: 'BracketLeft', keyCode: 219 },
@@ -409,9 +469,10 @@ function keyMeta(key: string): KeyMeta {
     ArrowUp: { code: 'ArrowUp', keyCode: 38 },
     ArrowDown: { code: 'ArrowDown', keyCode: 40 },
     ArrowLeft: { code: 'ArrowLeft', keyCode: 37 },
-    ArrowRight: { code: 'ArrowRight', keyCode: 39 }
+    ArrowRight: { code: 'ArrowRight', keyCode: 39 },
   };
-  for (let i = 1; i <= 12; i++) named[`F${i}`] = { code: `F${i}`, keyCode: 111 + i };
+  for (let i = 1; i <= 12; i++)
+    named[`F${i}`] = { code: `F${i}`, keyCode: 111 + i };
   if (named[k]) return { key: k, ...named[k] };
   if (k.length !== 1) {
     throw new Error(
@@ -447,26 +508,36 @@ export async function cdpPressKey(
   signal?: AbortSignal,
 ): Promise<string> {
   checkAbort(signal);
-  return withDebugger(tabId, async (send) => {
-    if (id !== undefined) {
-      const nodeId = await resolveNodeId(send, id);
-      await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
-      await send('DOM.focus', { nodeId }).catch(() => {});
-    }
-    checkAbort(signal);
-    const meta = keyMeta(key);
-    const base = {
-      key: meta.key,
-      ...(meta.code !== undefined ? { code: meta.code } : {}),
-      ...(meta.keyCode !== undefined ? { windowsVirtualKeyCode: meta.keyCode } : {}),
-    };
-    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
-    if (meta.text) {
-      await send('Input.dispatchKeyEvent', { type: 'char', ...base, text: meta.text });
-    }
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
-    return `Pressed ${key}.`;
-  }, signal);
+  return withDebugger(
+    tabId,
+    async (send) => {
+      if (id !== undefined) {
+        const nodeId = await resolveNodeId(send, id);
+        await send('DOM.scrollIntoViewIfNeeded', { nodeId }).catch(() => {});
+        await send('DOM.focus', { nodeId }).catch(() => {});
+      }
+      checkAbort(signal);
+      const meta = keyMeta(key);
+      const base = {
+        key: meta.key,
+        ...(meta.code !== undefined ? { code: meta.code } : {}),
+        ...(meta.keyCode !== undefined
+          ? { windowsVirtualKeyCode: meta.keyCode }
+          : {}),
+      };
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
+      if (meta.text) {
+        await send('Input.dispatchKeyEvent', {
+          type: 'char',
+          ...base,
+          text: meta.text,
+        });
+      }
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+      return `Pressed ${key}.`;
+    },
+    signal,
+  );
 }
 
 interface EvalResult {
@@ -482,7 +553,11 @@ const EVALUATE_TIMEOUT_MS = 5000;
 // flood the model context (and the panel's tool card) with an unbounded dump.
 const EVALUATE_RESULT_MAX_CHARS = 8000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(message)), ms);
@@ -492,28 +567,38 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function cdpEvaluate(tabId: number, expression: string, signal?: AbortSignal): Promise<string> {
+async function cdpEvaluate(
+  tabId: number,
+  expression: string,
+  signal?: AbortSignal,
+): Promise<string> {
   checkAbort(signal);
-  return withDebugger(tabId, async (send) => {
-    const res = (await withTimeout(
-      send('Runtime.evaluate', {
-        expression,
-        returnByValue: true,
-        awaitPromise: true,
-      }),
-      EVALUATE_TIMEOUT_MS,
-      'Evaluation timed out; the page script did not finish.',
-    )) as EvalResult;
-    if (res?.exceptionDetails) {
-      const detail = res.exceptionDetails.exception;
-      throw new Error(`Page script failed: ${(detail && detail.description) || res.exceptionDetails.text}`);
-    }
-    const value = res?.result?.value;
-    if (value === undefined || value === null) return 'undefined';
-    const str = typeof value === 'string' ? value : JSON.stringify(value);
-    if (str.length > EVALUATE_RESULT_MAX_CHARS) {
-      return `${str.slice(0, EVALUATE_RESULT_MAX_CHARS)}… [truncated: showing ${EVALUATE_RESULT_MAX_CHARS} of ${str.length} characters]`;
-    }
-    return str;
-  }, signal);
+  return withDebugger(
+    tabId,
+    async (send) => {
+      const res = (await withTimeout(
+        send('Runtime.evaluate', {
+          expression,
+          returnByValue: true,
+          awaitPromise: true,
+        }),
+        EVALUATE_TIMEOUT_MS,
+        'Evaluation timed out; the page script did not finish.',
+      )) as EvalResult;
+      if (res?.exceptionDetails) {
+        const detail = res.exceptionDetails.exception;
+        throw new Error(
+          `Page script failed: ${(detail && detail.description) || res.exceptionDetails.text}`,
+        );
+      }
+      const value = res?.result?.value;
+      if (value === undefined || value === null) return 'undefined';
+      const str = typeof value === 'string' ? value : JSON.stringify(value);
+      if (str.length > EVALUATE_RESULT_MAX_CHARS) {
+        return `${str.slice(0, EVALUATE_RESULT_MAX_CHARS)}… [truncated: showing ${EVALUATE_RESULT_MAX_CHARS} of ${str.length} characters]`;
+      }
+      return str;
+    },
+    signal,
+  );
 }

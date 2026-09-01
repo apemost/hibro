@@ -1,13 +1,13 @@
 // Connects the side panel to the service worker and stores recent conversations.
 // Incoming events become text, reasoning, and tool parts as they arrive.
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type {
   HibroHistoryMessage,
   HibroPart,
   PanelEvent,
-  PanelMessage
-} from "@/shared/protocol";
+  PanelMessage,
+} from '@/shared/protocol';
 import {
   CONVERSATIONS_KEY,
   type ConversationSummary,
@@ -18,10 +18,10 @@ import {
   summarize,
   upsertConversation,
   writeActiveConversation,
-  writeConversations
-} from "@/shared/conversations";
+  writeConversations,
+} from '@/shared/conversations';
 
-export type ChatStatus = "ready" | "streaming";
+export type ChatStatus = 'ready' | 'streaming';
 
 interface ChatState {
   messages: PanelMessage[];
@@ -34,34 +34,37 @@ interface ChatState {
 }
 
 type Action =
-  | { type: "send"; text: string }
-  | { type: "stop" }
-  | { type: "idle" }
-  | { type: "hydrate"; messages: PanelMessage[]; activeId: string }
-  | { type: "new-chat"; activeId: string }
-  | { type: "switch"; messages: PanelMessage[]; activeId: string }
+  | { type: 'send'; text: string }
+  | { type: 'stop' }
+  | { type: 'idle' }
+  | { type: 'hydrate'; messages: PanelMessage[]; activeId: string }
+  | { type: 'new-chat'; activeId: string }
+  | { type: 'switch'; messages: PanelMessage[]; activeId: string }
   | PanelEvent;
 
 const uid = (): string => crypto.randomUUID();
 
 const initial: ChatState = {
   messages: [],
-  status: "ready",
-  statusText: "",
+  status: 'ready',
+  statusText: '',
   activeId: uid(),
-  hydrated: false
+  hydrated: false,
 };
 
 // Returns a message list whose final entry can receive assistant parts.
 function ensureAssistantTail(messages: PanelMessage[]): PanelMessage[] {
   const next = [...messages];
   const last = next[next.length - 1];
-  if (last && last.role === "assistant" && !last.error) return next;
-  next.push({ id: uid(), role: "assistant", parts: [] });
+  if (last && last.role === 'assistant' && !last.error) return next;
+  next.push({ id: uid(), role: 'assistant', parts: [] });
   return next;
 }
 
-function replaceLast(messages: PanelMessage[], parts: HibroPart[]): PanelMessage[] {
+function replaceLast(
+  messages: PanelMessage[],
+  parts: HibroPart[],
+): PanelMessage[] {
   const next = [...messages];
   next[next.length - 1] = { ...next[next.length - 1], parts };
   return next;
@@ -69,46 +72,46 @@ function replaceLast(messages: PanelMessage[], parts: HibroPart[]): PanelMessage
 
 function reducer(state: ChatState, action: Action): ChatState {
   switch (action.type) {
-    case "send":
+    case 'send':
       return {
         ...state,
-        status: "streaming",
-        statusText: "Working…",
+        status: 'streaming',
+        statusText: 'Working…',
         // A send during startup must win over the pending storage restore.
         hydrated: true,
         messages: [
           ...state.messages,
           {
             id: uid(),
-            role: "user",
-            parts: [{ type: "text", text: action.text }]
-          }
-        ]
+            role: 'user',
+            parts: [{ type: 'text', text: action.text }],
+          },
+        ],
       };
 
-    case "status":
+    case 'status':
       return { ...state, statusText: action.text };
 
-    case "run-start": {
+    case 'run-start': {
       const messages = ensureAssistantTail(state.messages);
-      return { ...state, messages, status: "streaming" };
+      return { ...state, messages, status: 'streaming' };
     }
 
-    case "part-add": {
+    case 'part-add': {
       // The local "stop" action already marks a pre-first-token stop with a
       // "Stopped." text part; drop the worker's identical follow-up so the
       // bubble shows it exactly once. Mid-stream stops still append: the tail
       // part then holds partial content, not the marker.
       const tailMessage = state.messages[state.messages.length - 1];
       const tailPart =
-        tailMessage && tailMessage.role === "assistant"
+        tailMessage && tailMessage.role === 'assistant'
           ? tailMessage.parts[tailMessage.parts.length - 1]
           : undefined;
       if (
-        action.part.type === "text" &&
-        action.part.text === "Stopped." &&
-        tailPart?.type === "text" &&
-        tailPart.text === "Stopped."
+        action.part.type === 'text' &&
+        action.part.text === 'Stopped.' &&
+        tailPart?.type === 'text' &&
+        tailPart.text === 'Stopped.'
       ) {
         return state;
       }
@@ -116,11 +119,11 @@ function reducer(state: ChatState, action: Action): ChatState {
       const last = messages[messages.length - 1];
       return {
         ...state,
-        messages: replaceLast(messages, [...last.parts, action.part])
+        messages: replaceLast(messages, [...last.parts, action.part]),
       };
     }
 
-    case "part-delta": {
+    case 'part-delta': {
       const messages = ensureAssistantTail(state.messages);
       const last = messages[messages.length - 1];
       const parts = [...last.parts];
@@ -129,93 +132,111 @@ function reducer(state: ChatState, action: Action): ChatState {
       // one across an interleaved tool invocation.
       const tail = parts[parts.length - 1];
       if (tail && tail.type === action.partType) {
-        const cur = tail as { type: "text" | "reasoning"; text: string };
-        parts[parts.length - 1] = { type: cur.type, text: cur.text + action.delta };
+        const cur = tail as { type: 'text' | 'reasoning'; text: string };
+        parts[parts.length - 1] = {
+          type: cur.type,
+          text: cur.text + action.delta,
+        };
       } else {
         parts.push({ type: action.partType, text: action.delta });
       }
       return { ...state, messages: replaceLast(messages, parts) };
     }
 
-    case "tool-update": {
+    case 'tool-update': {
       const messages = ensureAssistantTail(state.messages);
       const last = messages[messages.length - 1];
       const parts = last.parts.map((p) =>
-        p.type === "tool-invocation" && p.toolCallId === action.toolCallId
-          ? { ...p, state: action.state, output: action.output, errorText: action.errorText }
-          : p
+        p.type === 'tool-invocation' && p.toolCallId === action.toolCallId
+          ? {
+              ...p,
+              state: action.state,
+              output: action.output,
+              errorText: action.errorText,
+            }
+          : p,
       );
       return { ...state, messages: replaceLast(messages, parts) };
     }
 
-    case "run-end":
-      return { ...state, status: "ready", statusText: "" };
+    case 'run-end':
+      return { ...state, status: 'ready', statusText: '' };
 
-    case "error": {
+    case 'error': {
       // Drop an in-flight, still-empty assistant bubble before surfacing the error.
       const messages = [...state.messages];
       const last = messages[messages.length - 1];
-      if (last && last.role === "assistant" && !last.error && last.parts.length === 0) {
+      if (
+        last &&
+        last.role === 'assistant' &&
+        !last.error &&
+        last.parts.length === 0
+      ) {
         messages.pop();
       }
       messages.push({
         id: uid(),
-        role: "assistant",
+        role: 'assistant',
         error: true,
         errorAction: action.action,
-        parts: [{ type: "text", text: action.text }]
+        parts: [{ type: 'text', text: action.text }],
       });
-      return { ...state, messages, status: "ready", statusText: "" };
+      return { ...state, messages, status: 'ready', statusText: '' };
     }
 
-    case "stop": {
+    case 'stop': {
       const messages = [...state.messages];
       const last = messages[messages.length - 1];
-      if (last && last.role === "assistant" && !last.error && last.parts.length === 0) {
+      if (
+        last &&
+        last.role === 'assistant' &&
+        !last.error &&
+        last.parts.length === 0
+      ) {
         messages[messages.length - 1] = {
           ...last,
-          parts: [{ type: "text", text: "Stopped." }]
+          parts: [{ type: 'text', text: 'Stopped.' }],
         };
       }
-      return { ...state, messages, status: "ready", statusText: "" };
+      return { ...state, messages, status: 'ready', statusText: '' };
     }
 
-    case "hydrate":
+    case 'hydrate':
       // Apply the restored conversation (or an empty one) and mark the state
       // usable for persistence.
       return {
         ...state,
         messages: action.messages,
         activeId: action.activeId,
-        status: "ready",
-        statusText: "",
-        hydrated: true
+        status: 'ready',
+        statusText: '',
+        hydrated: true,
       };
 
-    case "new-chat":
+    case 'new-chat':
       // A deliberate user action counts as hydration too, so a new-chat that
       // races the mount-load is respected instead of being clobbered by it.
       return {
         ...state,
         messages: [],
         activeId: action.activeId,
-        status: "ready",
-        statusText: "",
-        hydrated: true
+        status: 'ready',
+        statusText: '',
+        hydrated: true,
       };
 
-    case "switch":
+    case 'switch':
       return {
         ...state,
         messages: action.messages,
         activeId: action.activeId,
-        status: "ready",
-        statusText: "",
-        hydrated: true
+        status: 'ready',
+        statusText: '',
+        hydrated: true,
       };
 
-    case "idle":
-      return { ...state, status: "ready", statusText: "" };
+    case 'idle':
+      return { ...state, status: 'ready', statusText: '' };
 
     default:
       return state;
@@ -227,17 +248,23 @@ const SAVE_DEBOUNCE_MS = 400;
 
 function toHistory(messages: PanelMessage[]): HibroHistoryMessage[] {
   return messages
-    .map((m): HibroHistoryMessage =>
-      m.error
-        ? // Errored turns stay as a minimal assistant note instead of being
-          // dropped: dropping them leaves two consecutive user messages in the
-          // history, which strict providers (Anthropic) reject: one failed run
-          // would otherwise poison every later send of the thread.
-          {
-            role: m.role,
-            parts: [{ type: "text", text: "(This run failed and produced no answer.)" }]
-          }
-        : { role: m.role, parts: m.parts }
+    .map(
+      (m): HibroHistoryMessage =>
+        m.error
+          ? // Errored turns stay as a minimal assistant note instead of being
+            // dropped: dropping them leaves two consecutive user messages in the
+            // history, which strict providers (Anthropic) reject: one failed run
+            // would otherwise poison every later send of the thread.
+            {
+              role: m.role,
+              parts: [
+                {
+                  type: 'text',
+                  text: '(This run failed and produced no answer.)',
+                },
+              ],
+            }
+          : { role: m.role, parts: m.parts },
     )
     .slice(-MAX_HISTORY);
 }
@@ -255,7 +282,7 @@ function normalizeUrl(raw: string): string {
 async function getActiveTab(): Promise<chrome.tabs.Tab> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || tab.id === undefined) {
-    throw new Error("Could not find the active tab.");
+    throw new Error('Could not find the active tab.');
   }
   return tab;
 }
@@ -305,7 +332,9 @@ export function useHibroChat() {
       return;
     }
     const now = Date.now();
-    const existing = itemsRef.current.find((conversation) => conversation.id === activeId);
+    const existing = itemsRef.current.find(
+      (conversation) => conversation.id === activeId,
+    );
     const conv: StoredConversation = {
       id: activeId,
       // Keep a manual title instead of deriving it again after every message.
@@ -314,12 +343,15 @@ export function useHibroChat() {
       updatedAt: now,
       messages,
       // Omit an unknown page URL instead of storing undefined.
-      ...(lastUrlRef.current ? { lastUrl: lastUrlRef.current } : {})
+      ...(lastUrlRef.current ? { lastUrl: lastUrlRef.current } : {}),
     };
     const items = upsertConversation(itemsRef.current, conv);
     itemsRef.current = items;
     setSummaries(summarize(items));
-    await Promise.all([writeConversations(items), writeActiveConversation(activeId)]);
+    await Promise.all([
+      writeConversations(items),
+      writeActiveConversation(activeId),
+    ]);
   }, []);
 
   // Cancel stale writes before switching or deleting a conversation.
@@ -343,12 +375,22 @@ export function useHibroChat() {
         await persistNow();
         return;
       }
-      const active = activeId ? items.find((c) => c.id === activeId) : undefined;
+      const active = activeId
+        ? items.find((c) => c.id === activeId)
+        : undefined;
       if (active) {
         lastUrlRef.current = active.lastUrl;
-        dispatch({ type: "hydrate", messages: active.messages, activeId: active.id });
+        dispatch({
+          type: 'hydrate',
+          messages: active.messages,
+          activeId: active.id,
+        });
       } else {
-        dispatch({ type: "hydrate", messages: [], activeId: activeIdRef.current });
+        dispatch({
+          type: 'hydrate',
+          messages: [],
+          activeId: activeIdRef.current,
+        });
       }
     })();
   }, [persistNow]);
@@ -376,9 +418,9 @@ export function useHibroChat() {
   useEffect(() => {
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
-      area: string
+      area: string,
     ) => {
-      if (area !== "local" || !changes[CONVERSATIONS_KEY]) return;
+      if (area !== 'local' || !changes[CONVERSATIONS_KEY]) return;
       void (async () => {
         const { items } = await readConversationState();
         itemsRef.current = items;
@@ -397,24 +439,24 @@ export function useHibroChat() {
   // lastUrlRef, so genuine page changes are still flagged.
   const trackAgentNavigation = useCallback((event: PanelEvent) => {
     const calls = navigateCallsRef.current;
-    if (event.type === "run-start") {
+    if (event.type === 'run-start') {
       calls.clear();
       return;
     }
     if (
-      event.type === "part-add" &&
-      event.part.type === "tool-invocation" &&
-      event.part.toolName === "navigate" &&
-      typeof event.part.input.url === "string"
+      event.type === 'part-add' &&
+      event.part.type === 'tool-invocation' &&
+      event.part.toolName === 'navigate' &&
+      typeof event.part.input.url === 'string'
     ) {
       calls.set(event.part.toolCallId, normalizeUrl(event.part.input.url));
       return;
     }
-    if (event.type === "tool-update") {
+    if (event.type === 'tool-update') {
       const url = calls.get(event.toolCallId);
       if (url === undefined) return;
       calls.delete(event.toolCallId);
-      if (event.state === "output-available" && !event.errorText) {
+      if (event.state === 'output-available' && !event.errorText) {
         lastUrlRef.current = url;
       }
     }
@@ -424,14 +466,14 @@ export function useHibroChat() {
   // service worker never leaves the panel talking to a dead channel.
   const connect = useCallback((): chrome.runtime.Port => {
     if (portRef.current) return portRef.current;
-    const port = chrome.runtime.connect({ name: "hibro-panel" });
+    const port = chrome.runtime.connect({ name: 'hibro-panel' });
     port.onMessage.addListener((event: PanelEvent) => {
       trackAgentNavigation(event);
       dispatch(event);
     });
     port.onDisconnect.addListener(() => {
       portRef.current = null;
-      dispatch({ type: "idle" });
+      dispatch({ type: 'idle' });
     });
     portRef.current = port;
     return port;
@@ -440,7 +482,7 @@ export function useHibroChat() {
   // Keep the service worker alive during long runs: an open port alone does
   // not prevent termination, but message traffic resets the idle timer.
   useEffect(() => {
-    if (state.status !== "streaming") {
+    if (state.status !== 'streaming') {
       if (keepaliveRef.current) {
         clearInterval(keepaliveRef.current);
         keepaliveRef.current = null;
@@ -449,7 +491,7 @@ export function useHibroChat() {
     }
     keepaliveRef.current = setInterval(() => {
       try {
-        portRef.current?.postMessage({ type: "ping" });
+        portRef.current?.postMessage({ type: 'ping' });
       } catch {
         // Port is gone; the disconnect handler already reset state.
       }
@@ -463,14 +505,14 @@ export function useHibroChat() {
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || state.status === "streaming") return;
+      if (!trimmed || state.status === 'streaming') return;
       let tab: chrome.tabs.Tab;
       try {
         tab = await getActiveTab();
       } catch (err) {
         dispatch({
-          type: "error",
-          text: err instanceof Error ? err.message : String(err)
+          type: 'error',
+          text: err instanceof Error ? err.message : String(err),
         });
         return;
       }
@@ -479,41 +521,41 @@ export function useHibroChat() {
       // The URL this conversation last ran on lets the worker flag a page
       // change; the field is omitted when unknown (fresh or legacy threads).
       const previousPageUrl = lastUrlRef.current;
-      const currentUrl = tab.url || "";
+      const currentUrl = tab.url || '';
       if (currentUrl) lastUrlRef.current = currentUrl;
       // Keep the startup restore from observing a stale pre-dispatch ref.
       hydratedRef.current = true;
-      dispatch({ type: "send", text: trimmed });
+      dispatch({ type: 'send', text: trimmed });
       connect().postMessage({
-        type: "send",
+        type: 'send',
         text: trimmed,
         tabId: tab.id,
         history,
-        ...(previousPageUrl ? { previousPageUrl } : {})
+        ...(previousPageUrl ? { previousPageUrl } : {}),
       });
     },
-    [state.status]
+    [state.status],
   );
 
   const stop = useCallback(() => {
     try {
-      portRef.current?.postMessage({ type: "stop" });
+      portRef.current?.postMessage({ type: 'stop' });
     } catch {
       // Port is gone; nothing to stop.
     }
-    dispatch({ type: "stop" });
+    dispatch({ type: 'stop' });
   }, []);
 
   // Stop the current run before another conversation takes over the port.
   const abortRun = useCallback(() => {
     try {
-      portRef.current?.postMessage({ type: "stop" });
+      portRef.current?.postMessage({ type: 'stop' });
       portRef.current?.disconnect();
     } catch {
       // Port is gone; the next connect() recreates it.
     }
     portRef.current = null;
-    dispatch({ type: "idle" });
+    dispatch({ type: 'idle' });
   }, []);
 
   // Save the current thread and stop its request before opening a new one.
@@ -530,7 +572,7 @@ export function useHibroChat() {
       activeIdRef.current = id;
       messagesRef.current = [];
       hydratedRef.current = true;
-      dispatch({ type: "new-chat", activeId: id });
+      dispatch({ type: 'new-chat', activeId: id });
       await writeActiveConversation(id);
     } finally {
       transitioningRef.current = false;
@@ -555,13 +597,13 @@ export function useHibroChat() {
         // Update refs before render for the same flush safety as newChat.
         activeIdRef.current = conv.id;
         messagesRef.current = conv.messages;
-        dispatch({ type: "switch", messages: conv.messages, activeId: id });
+        dispatch({ type: 'switch', messages: conv.messages, activeId: id });
         await writeActiveConversation(id);
       } finally {
         transitioningRef.current = false;
       }
     },
-    [abortRun, cancelPendingSave, persistNow]
+    [abortRun, cancelPendingSave, persistNow],
   );
 
   // Save first so the renamed title remains authoritative on later writes.
@@ -581,7 +623,7 @@ export function useHibroChat() {
         transitioningRef.current = false;
       }
     },
-    [cancelPendingSave, persistNow]
+    [cancelPendingSave, persistNow],
   );
 
   // Deleting the active thread discards its unsaved tail and opens the next one.
@@ -602,30 +644,39 @@ export function useHibroChat() {
           await writeConversations(next);
           return;
         }
-        const target = next.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        const target = next
+          .slice()
+          .sort((a, b) => b.updatedAt - a.updatedAt)[0];
         // Update refs first so an early flush cannot restore the deleted thread.
         if (target) {
           lastUrlRef.current = target.lastUrl;
           activeIdRef.current = target.id;
           messagesRef.current = target.messages;
-          dispatch({ type: "switch", messages: target.messages, activeId: target.id });
+          dispatch({
+            type: 'switch',
+            messages: target.messages,
+            activeId: target.id,
+          });
           await Promise.all([
             writeConversations(next),
-            writeActiveConversation(target.id)
+            writeActiveConversation(target.id),
           ]);
         } else {
           const fresh = uid();
           lastUrlRef.current = undefined;
           activeIdRef.current = fresh;
           messagesRef.current = [];
-          dispatch({ type: "new-chat", activeId: fresh });
-          await Promise.all([writeConversations(next), writeActiveConversation(fresh)]);
+          dispatch({ type: 'new-chat', activeId: fresh });
+          await Promise.all([
+            writeConversations(next),
+            writeActiveConversation(fresh),
+          ]);
         }
       } finally {
         transitioningRef.current = false;
       }
     },
-    [abortRun, cancelPendingSave, persistNow]
+    [abortRun, cancelPendingSave, persistNow],
   );
 
   useEffect(
@@ -637,7 +688,7 @@ export function useHibroChat() {
       }
       portRef.current = null;
     },
-    []
+    [],
   );
 
   return {
@@ -651,6 +702,6 @@ export function useHibroChat() {
     newChat,
     switchTo,
     renameConversation,
-    deleteConversation
+    deleteConversation,
   };
 }

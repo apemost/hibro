@@ -22,11 +22,11 @@ This protects credentials from appearing as plain text in extension storage. It 
 
 ## Provider types
 
-| Type | Base URL | Use it for |
-| --- | --- | --- |
+| Type              | Base URL | Use it for                                                |
+| ----------------- | -------- | --------------------------------------------------------- |
 | OpenAI-compatible | Required | Services that support the OpenAI Chat Completions format. |
-| OpenAI | Optional | OpenAI's Chat Completions API or a compatible proxy. |
-| Anthropic | Optional | Anthropic's Messages API or a compatible proxy. |
+| OpenAI            | Optional | OpenAI's Chat Completions API or a compatible proxy.      |
+| Anthropic         | Optional | Anthropic's Messages API or a compatible proxy.           |
 
 OpenAI and Anthropic use their standard endpoints when the base URL is empty.
 

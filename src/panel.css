@@ -127,7 +127,12 @@ body {
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Segoe UI",
+    sans-serif;
   font-size: 14px;
   background: var(--background);
   color: var(--foreground);
@@ -347,7 +352,9 @@ footer {
 }
 
 .input-resize-handle:focus-visible::after {
-  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
 }
 
 .toolbar {

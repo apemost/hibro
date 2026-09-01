@@ -10,7 +10,10 @@ type DebuggerEventListener = (
 interface DebuggerHarnessOptions {
   attach?: () => Promise<void> | void;
   detach?: () => Promise<void> | void;
-  sendCommand?: (method: string, params: Record<string, unknown>) => Promise<unknown> | unknown;
+  sendCommand?: (
+    method: string,
+    params: Record<string, unknown>,
+  ) => Promise<unknown> | unknown;
 }
 
 function deferred<T = void>() {
@@ -34,7 +37,8 @@ function installDebuggerHarness(options: DebuggerHarnessOptions = {}) {
     ) => options.sendCommand?.(method, params),
     onEvent: {
       addListener: (listener: DebuggerEventListener) => listeners.add(listener),
-      removeListener: (listener: DebuggerEventListener) => listeners.delete(listener),
+      removeListener: (listener: DebuggerEventListener) =>
+        listeners.delete(listener),
       hasListener: (listener: DebuggerEventListener) => listeners.has(listener),
       hasListeners: () => listeners.size > 0,
       addRules: () => {},
@@ -88,7 +92,11 @@ test('an aborted debugger waiter keeps later actions behind the active session',
     await firstCommandStarted.promise;
 
     const controller = new AbortController();
-    const second = cdpScroll(41, { direction: 'down', amount: 2 }, controller.signal).then(
+    const second = cdpScroll(
+      41,
+      { direction: 'down', amount: 2 },
+      controller.signal,
+    ).then(
       () => 'fulfilled',
       (error: Error) => `rejected:${error.message}`,
     );
@@ -120,7 +128,9 @@ test('same-document navigation completes on Page.navigatedWithinDocument', async
   const harness = installDebuggerHarness({
     sendCommand: async (method) => {
       if (method === 'Page.navigate') {
-        queueMicrotask(() => emitEvent(52, 'Page.navigatedWithinDocument', { frameId: 'main' }));
+        queueMicrotask(() =>
+          emitEvent(52, 'Page.navigatedWithinDocument', { frameId: 'main' }),
+        );
         return { frameId: 'main' };
       }
       return {};
@@ -130,7 +140,10 @@ test('same-document navigation completes on Page.navigatedWithinDocument', async
 
   try {
     let settled = false;
-    const navigation = cdpNavigate(52, 'https://example.test/article#history').then((value) => {
+    const navigation = cdpNavigate(
+      52,
+      'https://example.test/article#history',
+    ).then((value) => {
       settled = true;
       return value;
     });
@@ -151,7 +164,9 @@ test('same-document navigation ignores child-frame events until the target frame
   const harness = installDebuggerHarness({
     sendCommand: async (method) => {
       if (method === 'Page.navigate') {
-        queueMicrotask(() => emitEvent(53, 'Page.navigatedWithinDocument', { frameId: 'child' }));
+        queueMicrotask(() =>
+          emitEvent(53, 'Page.navigatedWithinDocument', { frameId: 'child' }),
+        );
         return { frameId: 'main' };
       }
       return {};
@@ -161,7 +176,10 @@ test('same-document navigation ignores child-frame events until the target frame
 
   try {
     let settled = false;
-    const navigation = cdpNavigate(53, 'https://example.test/article#target').then((value) => {
+    const navigation = cdpNavigate(
+      53,
+      'https://example.test/article#target',
+    ).then((value) => {
       settled = true;
       return value;
     });
@@ -169,7 +187,9 @@ test('same-document navigation ignores child-frame events until the target frame
     expect(settled).toBe(false);
 
     harness.emit(53, 'Page.navigatedWithinDocument', { frameId: 'main' });
-    await expect(navigation).resolves.toBe('Navigated to https://example.test/article#target.');
+    await expect(navigation).resolves.toBe(
+      'Navigated to https://example.test/article#target.',
+    );
   } finally {
     harness.restore();
   }

@@ -1,8 +1,8 @@
 // Slide-over list for switching, renaming, and deleting recent conversations.
 
-import { useEffect, useState, type FormEvent } from "react";
-import type { ConversationSummary } from "@/shared/conversations";
-import { usePanelI18n, type PanelMessages } from "./i18n";
+import { useEffect, useState, type FormEvent } from 'react';
+import type { ConversationSummary } from '@/shared/conversations';
+import { usePanelI18n, type PanelMessages } from './i18n';
 
 interface ConversationDrawerProps {
   open: boolean;
@@ -35,27 +35,27 @@ export function ConversationDrawer({
   activeId,
   onSelect,
   onRename,
-  onDelete
+  onDelete,
 }: ConversationDrawerProps) {
   const { messages } = usePanelI18n();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftTitle, setDraftTitle] = useState("");
+  const [draftTitle, setDraftTitle] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) return;
     setEditingId(null);
-    setDraftTitle("");
+    setDraftTitle('');
     setSaving(false);
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
   const beginRename = (conversation: ConversationSummary) => {
@@ -65,7 +65,7 @@ export function ConversationDrawer({
 
   const cancelRename = () => {
     setEditingId(null);
-    setDraftTitle("");
+    setDraftTitle('');
   };
 
   const submitRename = async (event: FormEvent, id: string) => {
@@ -86,10 +86,12 @@ export function ConversationDrawer({
 
   return (
     <>
-      {open && <div id="convBackdrop" className="conv-backdrop" onClick={onClose} />}
+      {open && (
+        <div id="convBackdrop" className="conv-backdrop" onClick={onClose} />
+      )}
       <aside
         id="convDrawer"
-        className={`conv-drawer${open ? " open" : ""}`}
+        className={`conv-drawer${open ? ' open' : ''}`}
         aria-hidden={!open}
         aria-label={messages.recentConversations}
       >
@@ -116,16 +118,25 @@ export function ConversationDrawer({
             </svg>
           </button>
         </div>
-        <div className="conv-drawer-list" role="list" aria-label={messages.recentConversations}>
-          {summaries.length === 0 && <p className="conv-empty">{messages.noConversations}</p>}
+        <div
+          className="conv-drawer-list"
+          role="list"
+          aria-label={messages.recentConversations}
+        >
+          {summaries.length === 0 && (
+            <p className="conv-empty">{messages.noConversations}</p>
+          )}
           {summaries.map((c) => (
             <div
               key={c.id}
-              className={`conv-row${c.id === activeId ? " active" : ""}`}
+              className={`conv-row${c.id === activeId ? ' active' : ''}`}
               role="listitem"
             >
               {editingId === c.id ? (
-                <form className="conv-rename-form" onSubmit={(event) => void submitRename(event, c.id)}>
+                <form
+                  className="conv-rename-form"
+                  onSubmit={(event) => void submitRename(event, c.id)}
+                >
                   <input
                     className="conv-rename-input"
                     aria-label={messages.conversationTitle}
@@ -133,9 +144,11 @@ export function ConversationDrawer({
                     disabled={saving}
                     autoFocus
                     onFocus={(event) => event.currentTarget.select()}
-                    onChange={(event) => setDraftTitle(event.currentTarget.value)}
+                    onChange={(event) =>
+                      setDraftTitle(event.currentTarget.value)
+                    }
                     onKeyDown={(event) => {
-                      if (event.key !== "Escape") return;
+                      if (event.key !== 'Escape') return;
                       event.preventDefault();
                       event.stopPropagation();
                       cancelRename();
@@ -147,7 +160,13 @@ export function ConversationDrawer({
                     aria-label={messages.saveConversationTitle}
                     disabled={saving}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                    >
                       <path d="m5 12 4 4L19 6" />
                     </svg>
                   </button>
@@ -158,7 +177,13 @@ export function ConversationDrawer({
                     disabled={saving}
                     onClick={cancelRename}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                    >
                       <path d="M18 6 6 18" />
                       <path d="m6 6 12 12" />
                     </svg>
@@ -169,11 +194,13 @@ export function ConversationDrawer({
                   <button
                     type="button"
                     className="conv-row-main"
-                    aria-current={c.id === activeId ? "true" : undefined}
+                    aria-current={c.id === activeId ? 'true' : undefined}
                     onClick={() => onSelect(c.id)}
                   >
                     <span className="conv-title">{c.title}</span>
-                    <time className="conv-time">{formatRelative(c.updatedAt, messages)}</time>
+                    <time className="conv-time">
+                      {formatRelative(c.updatedAt, messages)}
+                    </time>
                   </button>
                   <div className="conv-actions">
                     <button
@@ -182,7 +209,13 @@ export function ConversationDrawer({
                       aria-label={messages.renameConversation(c.title)}
                       onClick={() => beginRename(c)}
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
                         <path d="M12 20h9" />
                         <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
                       </svg>

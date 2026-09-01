@@ -1,10 +1,10 @@
 // Shows model-generated HTML as code or in an opt-in static preview. The iframe
 // sandbox and injected CSP block scripts, forms, popups, and network requests.
 
-import { useContext, useMemo, useState } from "react";
-import type { CustomRenderer, CustomRendererProps } from "streamdown";
-import { PartStreamingContext } from "./partStreaming";
-import { usePanelI18n } from "./i18n";
+import { useContext, useMemo, useState } from 'react';
+import type { CustomRenderer, CustomRendererProps } from 'streamdown';
+import { PartStreamingContext } from './partStreaming';
+import { usePanelI18n } from './i18n';
 
 const PREVIEW_CSP =
   "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
@@ -16,11 +16,14 @@ function buildSrcDoc(code: string): string {
 
 function HtmlBlock({ code, isIncomplete }: CustomRendererProps) {
   const { messages } = usePanelI18n();
-  const [mode, setMode] = useState<"code" | "preview">("code");
+  const [mode, setMode] = useState<'code' | 'preview'>('code');
   // The Markdown parser closes open fences, so also wait for streaming to end.
   const complete = !isIncomplete && !useContext(PartStreamingContext);
   // Build untrusted srcdoc only after the user opens Preview.
-  const srcDoc = useMemo(() => (mode === "preview" ? buildSrcDoc(code) : null), [code, mode]);
+  const srcDoc = useMemo(
+    () => (mode === 'preview' ? buildSrcDoc(code) : null),
+    [code, mode],
+  );
 
   return (
     <div className="html-block" data-streamdown="html-block">
@@ -29,25 +32,29 @@ function HtmlBlock({ code, isIncomplete }: CustomRendererProps) {
         {/* No preview while the fence is still streaming: partial markup would
             render mid-edit and the toggle would churn on every chunk. */}
         {complete && (
-          <span className="html-toggle" role="group" aria-label={messages.htmlBlockView}>
+          <span
+            className="html-toggle"
+            role="group"
+            aria-label={messages.htmlBlockView}
+          >
             <button
               type="button"
-              className={mode === "code" ? "active" : ""}
-              onClick={() => setMode("code")}
+              className={mode === 'code' ? 'active' : ''}
+              onClick={() => setMode('code')}
             >
               {messages.code}
             </button>
             <button
               type="button"
-              className={mode === "preview" ? "active" : ""}
-              onClick={() => setMode("preview")}
+              className={mode === 'preview' ? 'active' : ''}
+              onClick={() => setMode('preview')}
             >
               {messages.preview}
             </button>
           </span>
         )}
       </div>
-      {mode === "preview" && complete && srcDoc !== null ? (
+      {mode === 'preview' && complete && srcDoc !== null ? (
         <iframe
           className="html-preview"
           sandbox=""
@@ -65,4 +72,7 @@ function HtmlBlock({ code, isIncomplete }: CustomRendererProps) {
 }
 
 /** Streamdown renderer for fenced HTML blocks. */
-export const htmlRenderer: CustomRenderer = { language: "html", component: HtmlBlock };
+export const htmlRenderer: CustomRenderer = {
+  language: 'html',
+  component: HtmlBlock,
+};

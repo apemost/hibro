@@ -26,11 +26,14 @@ export interface StoredUserSkill {
 const builtinRaw = import.meta.glob('../skills/**/SKILL.md', {
   query: '?raw',
   import: 'default',
-  eager: true
+  eager: true,
 }) as Record<string, string>;
 
 // Parses the small frontmatter subset used by skill files.
-function parseFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {
+function parseFrontmatter(raw: string): {
+  data: Record<string, unknown>;
+  body: string;
+} {
   const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) return { data: {}, body: raw };
   const data: Record<string, unknown> = {};
@@ -80,32 +83,39 @@ export function getBuiltinSkillMeta(): SkillMeta[] {
       name,
       description: String(data.description ?? ''),
       match: asStringList(data.match),
-      instructions: body.trim() || undefined
+      instructions: body.trim() || undefined,
     };
   });
 }
 
 function loadBuiltinSkills(
-  state: Record<string, { enabled?: boolean } | undefined>
+  state: Record<string, { enabled?: boolean } | undefined>,
 ): Skill[] {
   return getBuiltinSkillMeta().map((m) => ({
     ...m,
     source: 'builtin' as const,
     // A missing preference means the bundled skill is enabled.
-    enabled: state[m.id]?.enabled !== false
+    enabled: state[m.id]?.enabled !== false,
   }));
 }
 
 async function loadUserSkills(): Promise<Skill[]> {
-  const { hibroUserSkills } = (await chrome.storage.local.get('hibroUserSkills')) as {
+  const { hibroUserSkills } = (await chrome.storage.local.get(
+    'hibroUserSkills',
+  )) as {
     hibroUserSkills?: StoredUserSkill[];
   };
-  return (hibroUserSkills ?? []).map((s) => ({ ...s, source: 'user' as const }));
+  return (hibroUserSkills ?? []).map((s) => ({
+    ...s,
+    source: 'user' as const,
+  }));
 }
 
 // Converts the supported URL glob into a full-string regular expression.
 function globToRegExp(glob: string): RegExp {
-  const parts = glob.split('*').map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
+  const parts = glob
+    .split('*')
+    .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
   return new RegExp('^' + parts.join('.*') + '$');
 }
 
@@ -123,7 +133,9 @@ export function matchUrl(globs: string[], url: string): boolean {
 
 /** Returns enabled built-in and user skills for the active page. */
 export async function resolveActiveSkills(tabUrl: string): Promise<Skill[]> {
-  const { hibroSkillState } = (await chrome.storage.local.get('hibroSkillState')) as {
+  const { hibroSkillState } = (await chrome.storage.local.get(
+    'hibroSkillState',
+  )) as {
     hibroSkillState?: Record<string, { enabled?: boolean } | undefined>;
   };
   const state = hibroSkillState ?? {};
@@ -144,7 +156,7 @@ export function buildSkillInstructions(skills: Skill[]): string | undefined {
   return [
     'The following site skills are active for the current page. Apply their guidance when acting on the page.',
     '',
-    parts.join('\n\n')
+    parts.join('\n\n'),
   ].join('\n');
 }
 
@@ -157,6 +169,6 @@ export function buildSkillSummary(skills: Skill[]): string | undefined {
   return [
     'Active site skills for this page (knowledge the agent applies when you run a task):',
     lines,
-    'If the user asks what skills you have or what you can do here, list these. To use one, the user gives a task.'
+    'If the user asks what skills you have or what you can do here, list these. To use one, the user gives a task.',
   ].join('\n');
 }

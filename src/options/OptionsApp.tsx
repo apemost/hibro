@@ -1,6 +1,6 @@
 // Settings for general preferences, provider profiles, and site skills.
 
-import { getBuiltinSkillMeta, type StoredUserSkill } from "@/skills";
+import { getBuiltinSkillMeta, type StoredUserSkill } from '@/skills';
 import {
   ACTIVE_KEY,
   PRIVACY_CONSENT_KEY,
@@ -12,9 +12,9 @@ import {
   readPrivacyConsent,
   writeActive,
   writePrivacyConsent,
-  writeProfiles
-} from "@/shared/providers";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+  writeProfiles,
+} from '@/shared/providers';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_OPTIONS_LANGUAGE,
   OPTIONS_KEY,
@@ -23,60 +23,64 @@ import {
   readOptionsLanguage,
   resolveOptionsLanguage,
   writeOptionsLanguage,
-  type OptionsLanguage
-} from "./i18n";
+  type OptionsLanguage,
+} from './i18n';
 
 type SkillState = Record<string, { enabled?: boolean } | undefined>;
-type OptionsTab = "general" | "config" | "skills";
+type OptionsTab = 'general' | 'config' | 'skills';
 
-const USER_KEY = "hibroUserSkills";
-const STATE_KEY = "hibroSkillState";
+const USER_KEY = 'hibroUserSkills';
+const STATE_KEY = 'hibroSkillState';
 
 const PROVIDER_TYPES: { value: ProviderType; label: string }[] = [
-  { value: "openai-compatible", label: "OpenAI-compatible" },
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" }
+  { value: 'openai-compatible', label: 'OpenAI-compatible' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
 ];
 
 const FLASH_MS = 2000;
-type ProviderStatus = "saved" | "added" | "deleted";
-type SkillStatus = "created" | "saved" | "deleted";
+type ProviderStatus = 'saved' | 'added' | 'deleted';
+type SkillStatus = 'created' | 'saved' | 'deleted';
 
 /** Renders the Hibro Settings page. */
 export function OptionsApp() {
-  const [language, setLanguage] = useState<OptionsLanguage>(DEFAULT_OPTIONS_LANGUAGE);
+  const [language, setLanguage] = useState<OptionsLanguage>(
+    DEFAULT_OPTIONS_LANGUAGE,
+  );
   const messages = OPTIONS_MESSAGES[language];
 
   // LLM providers
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(
+    null,
+  );
   const [providerStorageError, setProviderStorageError] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
 
   // Provider editor form state.
-  const [pEditId, setPEditId] = useState("");
-  const [pEditName, setPEditName] = useState("");
-  const [pEditType, setPEditType] = useState<ProviderType>("openai-compatible");
-  const [pEditBaseUrl, setPEditBaseUrl] = useState("");
+  const [pEditId, setPEditId] = useState('');
+  const [pEditName, setPEditName] = useState('');
+  const [pEditType, setPEditType] = useState<ProviderType>('openai-compatible');
+  const [pEditBaseUrl, setPEditBaseUrl] = useState('');
   const [pEditBaseUrlError, setPEditBaseUrlError] = useState(false);
-  const [pEditApiKey, setPEditApiKey] = useState("");
-  const [pEditModel, setPEditModel] = useState("");
+  const [pEditApiKey, setPEditApiKey] = useState('');
+  const [pEditModel, setPEditModel] = useState('');
   const providerDialogRef = useRef<HTMLDialogElement>(null);
 
   // Tabs and skills
-  const [tab, setTab] = useState<OptionsTab>("config");
+  const [tab, setTab] = useState<OptionsTab>('config');
   const [builtins] = useState(() => getBuiltinSkillMeta());
   const [users, setUsers] = useState<StoredUserSkill[]>([]);
   const [skillState, setSkillState] = useState<SkillState>({});
   const [skillStatus, setSkillStatus] = useState<SkillStatus | null>(null);
 
   // Skill editor form state.
-  const [editId, setEditId] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editDesc, setEditDesc] = useState("");
-  const [editMatch, setEditMatch] = useState("");
-  const [editInstructions, setEditInstructions] = useState("");
+  const [editId, setEditId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editMatch, setEditMatch] = useState('');
+  const [editInstructions, setEditInstructions] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -106,10 +110,11 @@ export function OptionsApp() {
     // Apply provider changes made by another open extension page.
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
-      area: string
+      area: string,
     ) => {
-      if (area !== "local") return;
-      if (changes[PROVIDERS_KEY] || changes[ACTIVE_KEY]) void refreshProviders();
+      if (area !== 'local') return;
+      if (changes[PROVIDERS_KEY] || changes[ACTIVE_KEY])
+        void refreshProviders();
       if (changes[PRIVACY_CONSENT_KEY]) {
         consentStorageVersion += 1;
         setPrivacyConsent(changes[PRIVACY_CONSENT_KEY].newValue === true);
@@ -124,11 +129,13 @@ export function OptionsApp() {
     void refreshProviders();
     const consentReadVersion = consentStorageVersion;
     void readPrivacyConsent().then((accepted) => {
-      if (alive && consentStorageVersion === consentReadVersion) setPrivacyConsent(accepted);
+      if (alive && consentStorageVersion === consentReadVersion)
+        setPrivacyConsent(accepted);
     });
     const languageReadVersion = languageStorageVersion;
     void readOptionsLanguage().then((stored) => {
-      if (alive && languageStorageVersion === languageReadVersion) setLanguage(stored);
+      if (alive && languageStorageVersion === languageReadVersion)
+        setLanguage(stored);
     });
     void (async () => {
       const us = (await chrome.storage.local.get(USER_KEY))[USER_KEY] as
@@ -136,7 +143,9 @@ export function OptionsApp() {
         | undefined;
       if (!alive) return;
       setUsers(us ?? []);
-      const st = (await chrome.storage.local.get(STATE_KEY))[STATE_KEY] as SkillState | undefined;
+      const st = (await chrome.storage.local.get(STATE_KEY))[STATE_KEY] as
+        | SkillState
+        | undefined;
       if (!alive) return;
       setSkillState(st ?? {});
     })();
@@ -169,13 +178,13 @@ export function OptionsApp() {
   // Provider handlers
 
   function openProviderEditor(p?: ProviderProfile): void {
-    setPEditId(p?.id ?? "");
-    setPEditName(p?.name ?? "");
-    setPEditType(p?.provider ?? "openai-compatible");
-    setPEditBaseUrl(p?.baseUrl ?? "");
+    setPEditId(p?.id ?? '');
+    setPEditName(p?.name ?? '');
+    setPEditType(p?.provider ?? 'openai-compatible');
+    setPEditBaseUrl(p?.baseUrl ?? '');
     setPEditBaseUrlError(false);
-    setPEditApiKey("");
-    setPEditModel(p?.model ?? "");
+    setPEditApiKey('');
+    setPEditModel(p?.model ?? '');
     providerDialogRef.current?.showModal();
   }
 
@@ -193,8 +202,8 @@ export function OptionsApp() {
       name: pEditName.trim() || pEditType,
       provider: pEditType,
       baseUrl,
-      apiKey: pEditApiKey.trim() || existing?.apiKey || "",
-      model: pEditModel.trim()
+      apiKey: pEditApiKey.trim() || existing?.apiKey || '',
+      model: pEditModel.trim(),
     };
     const existed = Boolean(existing);
     const list = existed
@@ -215,7 +224,7 @@ export function OptionsApp() {
       return;
     }
     providerDialogRef.current?.close();
-    flash(setProviderStatus, existed ? "saved" : "added");
+    flash(setProviderStatus, existed ? 'saved' : 'added');
   }
 
   async function deleteProvider(id: string): Promise<void> {
@@ -235,7 +244,7 @@ export function OptionsApp() {
       setProviderStatus(null);
       return;
     }
-    flash(setProviderStatus, "deleted");
+    flash(setProviderStatus, 'deleted');
   }
 
   async function activateProvider(id: string): Promise<void> {
@@ -251,24 +260,25 @@ export function OptionsApp() {
   // Skill handlers
 
   function openEditor(skill?: StoredUserSkill): void {
-    setEditId(skill?.id ?? "");
-    setEditName(skill?.name ?? "");
-    setEditDesc(skill?.description ?? "");
-    setEditMatch(skill?.match.join("\n") ?? "");
-    setEditInstructions(skill?.instructions ?? "");
+    setEditId(skill?.id ?? '');
+    setEditName(skill?.name ?? '');
+    setEditDesc(skill?.description ?? '');
+    setEditMatch(skill?.match.join('\n') ?? '');
+    setEditInstructions(skill?.instructions ?? '');
     setEditEnabled(skill?.enabled ?? true);
     dialogRef.current?.showModal();
     // Do not steal focus when the user already reached another field.
     requestAnimationFrame(() => {
       const dlg = dialogRef.current;
-      if (dlg && !dlg.contains(document.activeElement)) nameRef.current?.focus();
+      if (dlg && !dlg.contains(document.activeElement))
+        nameRef.current?.focus();
     });
   }
 
   async function onSkillSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
     const match = editMatch
-      .split("\n")
+      .split('\n')
       .map((x) => x.trim())
       .filter(Boolean);
     const id = editId || `user:${crypto.randomUUID()}`;
@@ -278,11 +288,12 @@ export function OptionsApp() {
       description: editDesc.trim(),
       match,
       instructions: editInstructions.trim() || undefined,
-      enabled: editEnabled
+      enabled: editEnabled,
     };
-    const list = await ((await chrome.storage.local.get(USER_KEY))[USER_KEY] as
-      | StoredUserSkill[]
-      | undefined) ?? [];
+    const list =
+      (await ((
+        await chrome.storage.local.get(USER_KEY)
+      )[USER_KEY] as StoredUserSkill[] | undefined)) ?? [];
     const idx = list.findIndex((x) => x.id === id);
     const created = idx < 0;
     if (idx >= 0) list[idx] = skill;
@@ -290,7 +301,7 @@ export function OptionsApp() {
     await chrome.storage.local.set({ [USER_KEY]: list });
     setUsers(list);
     dialogRef.current?.close();
-    flash(setSkillStatus, created ? "created" : "saved");
+    flash(setSkillStatus, created ? 'created' : 'saved');
   }
 
   async function toggleUser(id: string, enabled: boolean): Promise<void> {
@@ -303,7 +314,7 @@ export function OptionsApp() {
     const list = users.filter((u) => u.id !== id);
     setUsers(list);
     await chrome.storage.local.set({ [USER_KEY]: list });
-    flash(setSkillStatus, "deleted");
+    flash(setSkillStatus, 'deleted');
   }
 
   async function toggleBuiltin(id: string, enabled: boolean): Promise<void> {
@@ -325,8 +336,8 @@ export function OptionsApp() {
           id="tab-general"
           data-tab="general"
           aria-controls="panel-general"
-          aria-selected={tab === "general"}
-          onClick={() => activateTab("general")}
+          aria-selected={tab === 'general'}
+          onClick={() => activateTab('general')}
         >
           {messages.tabs.general}
         </button>
@@ -337,8 +348,8 @@ export function OptionsApp() {
           id="tab-config"
           data-tab="config"
           aria-controls="panel-config"
-          aria-selected={tab === "config"}
-          onClick={() => activateTab("config")}
+          aria-selected={tab === 'config'}
+          onClick={() => activateTab('config')}
         >
           {messages.tabs.providers}
         </button>
@@ -349,8 +360,8 @@ export function OptionsApp() {
           id="tab-skills"
           data-tab="skills"
           aria-controls="skills"
-          aria-selected={tab === "skills"}
-          onClick={() => activateTab("skills")}
+          aria-selected={tab === 'skills'}
+          onClick={() => activateTab('skills')}
         >
           {messages.tabs.skills}
         </button>
@@ -362,7 +373,7 @@ export function OptionsApp() {
         data-tabpanel="general"
         role="tabpanel"
         aria-labelledby="tab-general"
-        hidden={tab !== "general"}
+        hidden={tab !== 'general'}
       >
         <div className="setting-row">
           <div className="setting-copy">
@@ -378,10 +389,12 @@ export function OptionsApp() {
             id="optionsLanguage"
             aria-describedby="optionsLanguageDescription"
             value={language}
-            onChange={(e) => changeLanguage(e.currentTarget.value as OptionsLanguage)}
+            onChange={(e) =>
+              changeLanguage(e.currentTarget.value as OptionsLanguage)
+            }
           >
             <option value="en">{OPTIONS_LANGUAGE_LABELS.en}</option>
-            <option value="zh-CN">{OPTIONS_LANGUAGE_LABELS["zh-CN"]}</option>
+            <option value="zh-CN">{OPTIONS_LANGUAGE_LABELS['zh-CN']}</option>
           </select>
         </div>
       </section>
@@ -392,7 +405,7 @@ export function OptionsApp() {
         data-tabpanel="config"
         role="tabpanel"
         aria-labelledby="tab-config"
-        hidden={tab !== "config"}
+        hidden={tab !== 'config'}
       >
         <p className="hint">{messages.providers.hint}</p>
         <aside
@@ -432,19 +445,23 @@ export function OptionsApp() {
             {messages.providers.add}
           </button>
           <p id="providerStatus" role="status">
-            {providerStatus ? messages.providers.status[providerStatus] : ""}
+            {providerStatus ? messages.providers.status[providerStatus] : ''}
           </p>
         </div>
 
         <div id="providerList">
-          {providers.length === 0 && <p className="hint">{messages.providers.empty}</p>}
+          {providers.length === 0 && (
+            <p className="hint">{messages.providers.empty}</p>
+          )}
           {providers.map((p) => (
             <div className="provider-row" data-id={p.id} key={p.id}>
               <div className="skill-row-main">
                 <div className="skill-title">
                   <strong>{p.name}</strong>
                   {p.id === activeId && (
-                    <span className="badge builtin">{messages.providers.active}</span>
+                    <span className="badge builtin">
+                      {messages.providers.active}
+                    </span>
                   )}
                 </div>
                 <span className="skill-match">
@@ -490,7 +507,7 @@ export function OptionsApp() {
         data-tabpanel="skills"
         role="tabpanel"
         aria-labelledby="tab-skills"
-        hidden={tab !== "skills"}
+        hidden={tab !== 'skills'}
       >
         <p className="hint">
           {messages.skills.hintBeforeWildcard}
@@ -503,7 +520,7 @@ export function OptionsApp() {
             {messages.skills.add}
           </button>
           <p id="skillStatus" role="status">
-            {skillStatus ? messages.skills.status[skillStatus] : ""}
+            {skillStatus ? messages.skills.status[skillStatus] : ''}
           </p>
         </div>
 
@@ -513,11 +530,15 @@ export function OptionsApp() {
               <div className="skill-row-main">
                 <div className="skill-title">
                   <strong>{b.name}</strong>
-                  <span className="badge builtin">{messages.skills.builtIn}</span>
+                  <span className="badge builtin">
+                    {messages.skills.builtIn}
+                  </span>
                 </div>
                 <span className="skill-match">{b.description}</span>
                 <span className="skill-match">
-                  {b.match.length ? messages.skills.matches(b.match) : messages.skills.noPatterns}
+                  {b.match.length
+                    ? messages.skills.matches(b.match)
+                    : messages.skills.noPatterns}
                 </span>
               </div>
               <div className="skill-row-actions">
@@ -526,8 +547,10 @@ export function OptionsApp() {
                     type="checkbox"
                     data-toggle={b.id}
                     checked={skillState[b.id]?.enabled !== false}
-                    onChange={(e) => toggleBuiltin(b.id, e.currentTarget.checked)}
-                  />{" "}
+                    onChange={(e) =>
+                      toggleBuiltin(b.id, e.currentTarget.checked)
+                    }
+                  />{' '}
                   {messages.common.enabled}
                 </label>
               </div>
@@ -541,7 +564,7 @@ export function OptionsApp() {
               <div className="skill-row-main">
                 <strong>{s.name}</strong>
                 <span className="skill-match">
-                  {s.match.join("  ·  ") || messages.skills.noPatterns}
+                  {s.match.join('  ·  ') || messages.skills.noPatterns}
                 </span>
               </div>
               <div className="skill-row-actions">
@@ -551,13 +574,21 @@ export function OptionsApp() {
                     data-toggle={s.id}
                     checked={s.enabled}
                     onChange={(e) => toggleUser(s.id, e.currentTarget.checked)}
-                  />{" "}
+                  />{' '}
                   {messages.common.enabled}
                 </label>
-                <button type="button" data-edit={s.id} onClick={() => openEditor(s)}>
+                <button
+                  type="button"
+                  data-edit={s.id}
+                  onClick={() => openEditor(s)}
+                >
                   {messages.common.edit}
                 </button>
-                <button type="button" data-delete={s.id} onClick={() => deleteUser(s.id)}>
+                <button
+                  type="button"
+                  data-delete={s.id}
+                  onClick={() => deleteUser(s.id)}
+                >
                   {messages.common.delete}
                 </button>
               </div>
@@ -573,7 +604,9 @@ export function OptionsApp() {
       >
         <form id="providerForm" autoComplete="off" onSubmit={onProviderSubmit}>
           <h3 id="providerFormTitle">
-            {pEditId ? messages.providers.editTitle : messages.providers.newTitle}
+            {pEditId
+              ? messages.providers.editTitle
+              : messages.providers.newTitle}
           </h3>
           <label>
             {messages.common.name}
@@ -607,14 +640,20 @@ export function OptionsApp() {
               placeholder={messages.providers.baseUrlPlaceholder(pEditType)}
               value={pEditBaseUrl}
               aria-invalid={pEditBaseUrlError || undefined}
-              aria-describedby={pEditBaseUrlError ? "providerBaseUrlError" : undefined}
+              aria-describedby={
+                pEditBaseUrlError ? 'providerBaseUrlError' : undefined
+              }
               onChange={(e) => {
                 setPEditBaseUrl(e.target.value);
                 setPEditBaseUrlError(false);
               }}
             />
             {pEditBaseUrlError && (
-              <span id="providerBaseUrlError" className="field-error" role="alert">
+              <span
+                id="providerBaseUrlError"
+                className="field-error"
+                role="alert"
+              >
                 {messages.providers.insecureBaseUrl}
               </span>
             )}
@@ -654,7 +693,11 @@ export function OptionsApp() {
         </form>
       </dialog>
 
-      <dialog id="skillDialog" aria-label={messages.skills.editorLabel} ref={dialogRef}>
+      <dialog
+        id="skillDialog"
+        aria-label={messages.skills.editorLabel}
+        ref={dialogRef}
+      >
         <form id="skillForm" autoComplete="off" onSubmit={onSkillSubmit}>
           <h3 id="skillFormTitle">
             {editId ? messages.skills.editTitle : messages.skills.newTitle}
@@ -708,12 +751,16 @@ export function OptionsApp() {
               type="checkbox"
               checked={editEnabled}
               onChange={(e) => setEditEnabled(e.currentTarget.checked)}
-            />{" "}
+            />{' '}
             {messages.common.enabled}
           </label>
           <div className="actions">
             <button type="submit">{messages.common.save}</button>
-            <button id="skillCancel" type="button" onClick={() => dialogRef.current?.close()}>
+            <button
+              id="skillCancel"
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+            >
               {messages.common.cancel}
             </button>
           </div>

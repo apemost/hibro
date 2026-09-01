@@ -1,8 +1,8 @@
 // Floating Copy and Explain actions for completed conversation messages.
 // Interactive message content keeps its normal click behavior.
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePanelI18n } from "./i18n";
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { usePanelI18n } from './i18n';
 
 interface ExplainResponse {
   ok: boolean;
@@ -18,7 +18,7 @@ interface Anchor {
 }
 
 interface Pill extends Anchor {
-  kind: "message" | "selection";
+  kind: 'message' | 'selection';
 }
 
 interface Card extends Anchor {
@@ -35,14 +35,25 @@ const CARD_EDGE_GAP = 8;
 const CARD_ANCHOR_GAP = 6;
 const COPIED_MS = 1200;
 
-function clampCardCoordinate(preferred: number, size: number, viewportSize: number): number {
+function clampCardCoordinate(
+  preferred: number,
+  size: number,
+  viewportSize: number,
+): number {
   const maximum = Math.max(CARD_EDGE_GAP, viewportSize - size - CARD_EDGE_GAP);
   return Math.min(Math.max(preferred, CARD_EDGE_GAP), maximum);
 }
 
-function placeCardWithinViewport(element: HTMLDivElement, anchor: Anchor): void {
+function placeCardWithinViewport(
+  element: HTMLDivElement,
+  anchor: Anchor,
+): void {
   const rect = element.getBoundingClientRect();
-  const left = clampCardCoordinate(anchor.left - rect.width / 2, rect.width, window.innerWidth);
+  const left = clampCardCoordinate(
+    anchor.left - rect.width / 2,
+    rect.width,
+    window.innerWidth,
+  );
   const below = anchor.bottom + CARD_ANCHOR_GAP;
   const above = anchor.top - rect.height - CARD_ANCHOR_GAP;
   const maximumTop = window.innerHeight - rect.height - CARD_EDGE_GAP;
@@ -58,7 +69,7 @@ function placeCardWithinViewport(element: HTMLDivElement, anchor: Anchor): void 
 
   element.style.left = `${left}px`;
   element.style.top = `${clampCardCoordinate(preferredTop, rect.height, window.innerHeight)}px`;
-  element.style.visibility = "visible";
+  element.style.visibility = 'visible';
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -67,15 +78,15 @@ async function copyText(text: string): Promise<boolean> {
     return true;
   } catch {
     // Fall back when the panel is not focused for the async clipboard API.
-    const ta = document.createElement("textarea");
+    const ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
     let ok = false;
     try {
-      ok = document.execCommand("copy");
+      ok = document.execCommand('copy');
     } catch {
       ok = false;
     }
@@ -103,26 +114,29 @@ export function MessageActions() {
         if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
         const range = sel.getRangeAt(0);
         const node = range.commonAncestorContainer;
-        const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
-        if (!el || !el.closest("#log .msg")) return;
+        const el =
+          node.nodeType === Node.ELEMENT_NODE
+            ? (node as Element)
+            : node.parentElement;
+        if (!el || !el.closest('#log .msg')) return;
         const text = sel.toString().trim();
         if (!text) return;
         const rect = range.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) return;
         setCopied(false);
         setPill({
-          kind: "selection",
+          kind: 'selection',
           top: rect.top,
           bottom: rect.bottom,
           left: clampLeft(rect.left + rect.width / 2),
-          text
+          text,
         });
         setCard(null);
       });
     };
-    document.addEventListener("selectionchange", update);
+    document.addEventListener('selectionchange', update);
     return () => {
-      document.removeEventListener("selectionchange", update);
+      document.removeEventListener('selectionchange', update);
       cancelAnimationFrame(frame);
     };
   }, []);
@@ -130,26 +144,37 @@ export function MessageActions() {
   // A plain click on finished message text offers Copy at the click point.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const log = document.getElementById("log");
+      const log = document.getElementById('log');
       const target = e.target as HTMLElement;
       if (!log || !log.contains(target)) return;
-      const msg = target.closest<HTMLElement>(".msg");
+      const msg = target.closest<HTMLElement>('.msg');
       if (!msg) {
         setPill(null);
         return;
       }
-      if (target.closest("a, button, summary, input, textarea, [role='button']")) return;
+      if (
+        target.closest("a, button, summary, input, textarea, [role='button']")
+      )
+        return;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return; // a drag-selection's trailing click
-      if (msg.classList.contains("streaming")) return;
-      const text = (msg.querySelector<HTMLElement>(".msg-text")?.innerText ?? msg.innerText).trim();
+      if (msg.classList.contains('streaming')) return;
+      const text = (
+        msg.querySelector<HTMLElement>('.msg-text')?.innerText ?? msg.innerText
+      ).trim();
       if (!text) return;
       setCopied(false);
-      setPill({ kind: "message", top: e.clientY, bottom: e.clientY, left: clampLeft(e.clientX), text });
+      setPill({
+        kind: 'message',
+        top: e.clientY,
+        bottom: e.clientY,
+        left: clampLeft(e.clientX),
+        text,
+      });
       setCard(null);
     };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
   }, []);
 
   // Dismiss actions when their page position is no longer meaningful.
@@ -160,23 +185,23 @@ export function MessageActions() {
       setPill(null);
     };
     const onScroll = () => setPill(null);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("scroll", onScroll, true);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('scroll', onScroll, true);
     return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('scroll', onScroll, true);
     };
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setPill(null);
         setCard(null);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -186,8 +211,8 @@ export function MessageActions() {
         setCard(null);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [card]);
 
   useLayoutEffect(() => {
@@ -197,10 +222,10 @@ export function MessageActions() {
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
-    window.addEventListener("resize", update);
+    window.addEventListener('resize', update);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", update);
+      window.removeEventListener('resize', update);
     };
   }, [card]);
 
@@ -213,7 +238,7 @@ export function MessageActions() {
   };
 
   const onExplain = async (): Promise<void> => {
-    if (!pill || pill.kind !== "selection") return;
+    if (!pill || pill.kind !== 'selection') return;
     const { top, bottom, left, text } = pill;
     setCard({
       top,
@@ -221,19 +246,25 @@ export function MessageActions() {
       left,
       text,
       loading: true,
-      result: ""
+      result: '',
     });
     setPill(null);
     try {
       const res = (await chrome.runtime.sendMessage({
-        type: "hibro:explain",
-        text
+        type: 'hibro:explain',
+        text,
       })) as ExplainResponse;
-      const result = res.ok ? (res.text ?? "") : (res.error ?? messages.genericError);
-      setCard((c) => (c && c.text === text ? { ...c, loading: false, result } : c));
+      const result = res.ok
+        ? (res.text ?? '')
+        : (res.error ?? messages.genericError);
+      setCard((c) =>
+        c && c.text === text ? { ...c, loading: false, result } : c,
+      );
     } catch (err) {
       const result = err instanceof Error ? err.message : String(err);
-      setCard((c) => (c && c.text === text ? { ...c, loading: false, result } : c));
+      setCard((c) =>
+        c && c.text === text ? { ...c, loading: false, result } : c,
+      );
     }
   };
 
@@ -244,21 +275,29 @@ export function MessageActions() {
       {pill && (
         <div
           ref={pillRef}
-          className={`action-pill${pillBelow ? " below" : ""}`}
+          className={`action-pill${pillBelow ? ' below' : ''}`}
           style={{
             top: `${pillBelow ? pill.bottom : pill.top}px`,
-            left: `${pill.left}px`
+            left: `${pill.left}px`,
           }}
           // Keep the selection available for Explain after Copy.
           onMouseDown={(e) => e.preventDefault()}
         >
-          <button type="button" data-action="copy" onClick={() => void onCopy()}>
+          <button
+            type="button"
+            data-action="copy"
+            onClick={() => void onCopy()}
+          >
             {copied ? messages.copied : messages.copy}
           </button>
-          {pill.kind === "selection" && (
+          {pill.kind === 'selection' && (
             <>
               <span className="action-pill-divider" aria-hidden="true" />
-              <button type="button" data-action="explain" onClick={() => void onExplain()}>
+              <button
+                type="button"
+                data-action="explain"
+                onClick={() => void onExplain()}
+              >
                 {messages.explain}
               </button>
             </>

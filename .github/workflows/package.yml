@@ -3,15 +3,16 @@ name: Package extension
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     paths:
-      - '.github/workflows/package.yml'
-      - '.gitignore'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'scripts/package-extension.mjs'
-      - 'test/package-extension.test.mjs'
+      - ".github/workflows/package.yml"
+      - ".gitignore"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".release-it.json"
+      - "scripts/package-extension.mjs"
+      - "test/package-extension.test.mjs"
 
 permissions:
   contents: read

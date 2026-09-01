@@ -90,8 +90,14 @@ function completion(content: string) {
     object: 'chat.completion',
     created: 0,
     model: 'mock',
-    choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+    choices: [
+      {
+        index: 0,
+        message: { role: 'assistant', content },
+        finish_reason: 'stop',
+      },
+    ],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   };
 }
 
@@ -99,7 +105,11 @@ function completion(content: string) {
 // 'tool_calls' tells the SDK to run the tool, append the result, and
 // re-request — which the mock answers on the next turn. The id must be unique
 // per call within a conversation.
-function toolCompletion(id: string, name: string, args: Record<string, unknown>) {
+function toolCompletion(
+  id: string,
+  name: string,
+  args: Record<string, unknown>,
+) {
   return {
     id: 'chatcmpl-mock',
     object: 'chat.completion',
@@ -112,20 +122,27 @@ function toolCompletion(id: string, name: string, args: Record<string, unknown>)
           role: 'assistant',
           content: null,
           tool_calls: [
-            { id, type: 'function', function: { name, arguments: JSON.stringify(args) } }
-          ]
+            {
+              id,
+              type: 'function',
+              function: { name, arguments: JSON.stringify(args) },
+            },
+          ],
         },
-        finish_reason: 'tool_calls'
-      }
+        finish_reason: 'tool_calls',
+      },
     ],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   };
 }
 
 // --- OpenAI-flavor Server-Sent Events (Chat Completions chunks) ---
 
 function sseHead(res: http.ServerResponse) {
-  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+  });
 }
 const sseChunk = (res: http.ServerResponse, data: unknown) =>
   res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -136,7 +153,12 @@ const sseDone = (res: http.ServerResponse) => {
 
 // A streamed tool call: one delta carrying the whole call, then the
 // tool_calls finish reason.
-async function streamToolCall(res: http.ServerResponse, id: string, name: string, args: Record<string, unknown>) {
+async function streamToolCall(
+  res: http.ServerResponse,
+  id: string,
+  name: string,
+  args: Record<string, unknown>,
+) {
   sseHead(res);
   sseChunk(res, {
     choices: [
@@ -146,24 +168,37 @@ async function streamToolCall(res: http.ServerResponse, id: string, name: string
           role: 'assistant',
           content: null,
           tool_calls: [
-            { index: 0, id, type: 'function', function: { name, arguments: JSON.stringify(args) } }
-          ]
-        }
-      }
-    ]
+            {
+              index: 0,
+              id,
+              type: 'function',
+              function: { name, arguments: JSON.stringify(args) },
+            },
+          ],
+        },
+      },
+    ],
   });
   await sleep(60);
-  sseChunk(res, { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] });
+  sseChunk(res, {
+    choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+  });
   sseDone(res);
 }
 
 // Streamed text, optionally preceded by reasoning chunks (the
 // openai-compatible provider maps `reasoning_content` to reasoning stream
 // parts, which feed the panel's run readout).
-async function streamTextChunks(res: http.ServerResponse, chunks: string[], reasoning?: string[]) {
+async function streamTextChunks(
+  res: http.ServerResponse,
+  chunks: string[],
+  reasoning?: string[],
+) {
   sseHead(res);
   for (const note of reasoning ?? []) {
-    sseChunk(res, { choices: [{ index: 0, delta: { reasoning_content: note } }] });
+    sseChunk(res, {
+      choices: [{ index: 0, delta: { reasoning_content: note } }],
+    });
     await sleep(80);
   }
   for (const chunk of chunks) {
@@ -176,8 +211,11 @@ async function streamTextChunks(res: http.ServerResponse, chunks: string[], reas
 
 // --- Anthropic-flavor Server-Sent Events (Messages API) ---
 
-const anthropicEvent = (res: http.ServerResponse, event: string, data: unknown) =>
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+const anthropicEvent = (
+  res: http.ServerResponse,
+  event: string,
+  data: unknown,
+) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
 function anthropicMessageStart(res: http.ServerResponse, model: string) {
   sseHead(res);
@@ -191,29 +229,36 @@ function anthropicMessageStart(res: http.ServerResponse, model: string) {
       content: [],
       stop_reason: null,
       stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 }
-    }
+      usage: { input_tokens: 1, output_tokens: 1 },
+    },
   });
 }
 
-async function anthropicStreamText(res: http.ServerResponse, model: string, text: string) {
+async function anthropicStreamText(
+  res: http.ServerResponse,
+  model: string,
+  text: string,
+) {
   anthropicMessageStart(res, model);
   anthropicEvent(res, 'content_block_start', {
     type: 'content_block_start',
     index: 0,
-    content_block: { type: 'text', text: '' }
+    content_block: { type: 'text', text: '' },
   });
   await sleep(40);
   anthropicEvent(res, 'content_block_delta', {
     type: 'content_block_delta',
     index: 0,
-    delta: { type: 'text_delta', text }
+    delta: { type: 'text_delta', text },
   });
-  anthropicEvent(res, 'content_block_stop', { type: 'content_block_stop', index: 0 });
+  anthropicEvent(res, 'content_block_stop', {
+    type: 'content_block_stop',
+    index: 0,
+  });
   anthropicEvent(res, 'message_delta', {
     type: 'message_delta',
     delta: { stop_reason: 'end_turn', stop_sequence: null },
-    usage: { output_tokens: 1 }
+    usage: { output_tokens: 1 },
   });
   anthropicEvent(res, 'message_stop', { type: 'message_stop' });
   res.end();
@@ -224,25 +269,28 @@ async function anthropicStreamToolCall(
   model: string,
   id: string,
   name: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ) {
   anthropicMessageStart(res, model);
   anthropicEvent(res, 'content_block_start', {
     type: 'content_block_start',
     index: 0,
-    content_block: { type: 'tool_use', id, name, input: {} }
+    content_block: { type: 'tool_use', id, name, input: {} },
   });
   await sleep(40);
   anthropicEvent(res, 'content_block_delta', {
     type: 'content_block_delta',
     index: 0,
-    delta: { type: 'input_json_delta', partial_json: JSON.stringify(args) }
+    delta: { type: 'input_json_delta', partial_json: JSON.stringify(args) },
   });
-  anthropicEvent(res, 'content_block_stop', { type: 'content_block_stop', index: 0 });
+  anthropicEvent(res, 'content_block_stop', {
+    type: 'content_block_stop',
+    index: 0,
+  });
   anthropicEvent(res, 'message_delta', {
     type: 'message_delta',
     delta: { stop_reason: 'tool_use', stop_sequence: null },
-    usage: { output_tokens: 1 }
+    usage: { output_tokens: 1 },
   });
   anthropicEvent(res, 'message_stop', { type: 'message_stop' });
   res.end();
@@ -254,7 +302,7 @@ function anthropicJson(
   res: http.ServerResponse,
   model: string,
   contentBlocks: Array<Record<string, unknown>>,
-  stopReason: string
+  stopReason: string,
 ) {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(
@@ -266,8 +314,8 @@ function anthropicJson(
       content: contentBlocks,
       stop_reason: stopReason,
       stop_sequence: null,
-      usage: { input_tokens: 1, output_tokens: 1 }
-    })
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }),
   );
 }
 
@@ -283,10 +331,17 @@ export async function startMock(): Promise<MockServer> {
   // The next tool call to emit on this loop turn: the scripted call when one
   // is set, else the default scroll for action-looking messages on turn 0.
   // Null means "no more tools; produce the final answer".
-  const nextCall = (lastUser: string, toolTurns: number): AgentScriptCall | null => {
+  const nextCall = (
+    lastUser: string,
+    toolTurns: number,
+  ): AgentScriptCall | null => {
     const scripted = agentScript[toolTurns];
     if (scripted) return scripted;
-    if (toolTurns === 0 && agentScript.length === 0 && ACTION_RE.test(lastUser)) {
+    if (
+      toolTurns === 0 &&
+      agentScript.length === 0 &&
+      ACTION_RE.test(lastUser)
+    ) {
       return { name: 'scroll', args: { direction: 'down' } };
     }
     return null;
@@ -323,7 +378,9 @@ export async function startMock(): Promise<MockServer> {
         const messages = parsed.messages ?? [];
         const sys: string = messages[0]?.content ?? '';
         const lastUser: string =
-          [...messages].reverse().find((m: { role: string }) => m.role === 'user')?.content ?? '';
+          [...messages]
+            .reverse()
+            .find((m: { role: string }) => m.role === 'user')?.content ?? '';
         const json = (content: string) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(completion(content)));
@@ -341,9 +398,14 @@ export async function startMock(): Promise<MockServer> {
         }
         // Unified assistant loop. Turn index = number of tool results the SDK
         // has fed back so far.
-        const toolTurns = messages.filter((m: { role: string }) => m.role === 'tool').length;
+        const toolTurns = messages.filter(
+          (m: { role: string }) => m.role === 'tool',
+        ).length;
         toolNames.push(
-          parsed.tools.map((entry: { function?: { name?: string } }) => entry.function?.name ?? '')
+          parsed.tools.map(
+            (entry: { function?: { name?: string } }) =>
+              entry.function?.name ?? '',
+          ),
         );
         systems.push(sys);
         userMessages.push(lastUser);
@@ -352,10 +414,19 @@ export async function startMock(): Promise<MockServer> {
         if (call) {
           if (parsed.stream) {
             stats.stream++;
-            await streamToolCall(res, `call_mock_${toolTurns}`, call.name, call.args);
+            await streamToolCall(
+              res,
+              `call_mock_${toolTurns}`,
+              call.name,
+              call.args,
+            );
           } else {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(toolCompletion(`call_mock_${toolTurns}`, call.name, call.args)));
+            res.end(
+              JSON.stringify(
+                toolCompletion(`call_mock_${toolTurns}`, call.name, call.args),
+              ),
+            );
           }
           return;
         }
@@ -384,36 +455,43 @@ export async function startMock(): Promise<MockServer> {
               ? [
                   'Here is the chart:\n\n```chart\n',
                   `{"series":[{"type":"scatter","symbol":"image://${trackingUrl}","data":[[1,2]]}]}\n`,
-                  '```\n'
+                  '```\n',
                 ]
               : /diagram/i.test(lastUser)
                 ? [
                     'Sure, here is the flow:\n\n```mermaid\n',
                     'graph TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]\n  B -->|no| A\n```\n',
-                    '\nThat is the whole flow.'
+                    '\nThat is the whole flow.',
                   ]
                 : /broken chart/i.test(lastUser)
-              ? ['Here is the chart:\n\n```chart\n', '{not valid json}\n', '```\n']
-              : /chart/i.test(lastUser)
-                ? [
-                    'Here is the chart:\n\n```chart\n',
-                    '{"xAxis":{"type":"category","data":["Q1","Q2","Q3"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[3,5,4]}]}\n',
-                    '```\n\nQuarterly numbers.'
-                  ]
-                : /html/i.test(lastUser)
                   ? [
-                      'Here is the snippet:\n\n```html\n',
-                      '<div style="padding:16px;border:2px solid #1d4ed8;border-radius:8px">\n  <h2 style="color:#1d4ed8;margin:0">Preview me</h2>\n</div>\n',
-                      '```\n'
+                      'Here is the chart:\n\n```chart\n',
+                      '{not valid json}\n',
+                      '```\n',
                     ]
-                  : /long code/i.test(lastUser)
-                    ? // 40 lines: well past the panel's 25-line code-block cap.
-                      [
-                        'Here is the code:\n\n```\n',
-                        Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n'),
-                        '\n```\n'
+                  : /chart/i.test(lastUser)
+                    ? [
+                        'Here is the chart:\n\n```chart\n',
+                        '{"xAxis":{"type":"category","data":["Q1","Q2","Q3"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[3,5,4]}]}\n',
+                        '```\n\nQuarterly numbers.',
                       ]
-                    : null;
+                    : /html/i.test(lastUser)
+                      ? [
+                          'Here is the snippet:\n\n```html\n',
+                          '<div style="padding:16px;border:2px solid #1d4ed8;border-radius:8px">\n  <h2 style="color:#1d4ed8;margin:0">Preview me</h2>\n</div>\n',
+                          '```\n',
+                        ]
+                      : /long code/i.test(lastUser)
+                        ? // 40 lines: well past the panel's 25-line code-block cap.
+                          [
+                            'Here is the code:\n\n```\n',
+                            Array.from(
+                              { length: 40 },
+                              (_, i) => `line ${i + 1}`,
+                            ).join('\n'),
+                            '\n```\n',
+                          ]
+                        : null;
           if (chunks) {
             await streamTextChunks(res, chunks);
             return;
@@ -422,13 +500,17 @@ export async function startMock(): Promise<MockServer> {
           // observable.
           await streamTextChunks(
             res,
-            ['This is a **streaming**', ' mock answer', '.\n\n- first\n- second'],
+            [
+              'This is a **streaming**',
+              ' mock answer',
+              '.\n\n- first\n- second',
+            ],
             [
               'mock thought line one\n',
               'mock thought line two\n',
               'mock thought line three\n',
-              'mock thought line four'
-            ]
+              'mock thought line four',
+            ],
           );
           return;
         }
@@ -452,7 +534,11 @@ export async function startMock(): Promise<MockServer> {
           if (typeof content === 'string') return content;
           if (Array.isArray(content)) {
             return content
-              .map((b) => (typeof b === 'string' ? b : (b as { text?: string })?.text ?? ''))
+              .map((b) =>
+                typeof b === 'string'
+                  ? b
+                  : ((b as { text?: string })?.text ?? ''),
+              )
               .join('');
           }
           return '';
@@ -464,21 +550,33 @@ export async function startMock(): Promise<MockServer> {
         const model = parsed.model ?? 'mock';
         if (sys.includes('selected an excerpt')) {
           stats.explain++;
-          anthropicJson(res, model, [{ type: 'text', text: 'mock explanation', index: 0 }], 'end_turn');
+          anthropicJson(
+            res,
+            model,
+            [{ type: 'text', text: 'mock explanation', index: 0 }],
+            'end_turn',
+          );
           return;
         }
         const hasTools = Array.isArray(parsed.tools) && parsed.tools.length > 0;
         if (!hasTools) {
-          anthropicJson(res, model, [{ type: 'text', text: 'plain answer', index: 0 }], 'end_turn');
+          anthropicJson(
+            res,
+            model,
+            [{ type: 'text', text: 'plain answer', index: 0 }],
+            'end_turn',
+          );
           return;
         }
         // Unified loop; a turn's index = messages carrying tool_result blocks.
         const toolTurns = msgs.filter(
           (m) =>
             Array.isArray(m.content) &&
-            m.content.some((b: { type?: string }) => b?.type === 'tool_result')
+            m.content.some((b: { type?: string }) => b?.type === 'tool_result'),
         ).length;
-        toolNames.push(parsed.tools.map((entry: { name?: string }) => entry.name ?? ''));
+        toolNames.push(
+          parsed.tools.map((entry: { name?: string }) => entry.name ?? ''),
+        );
         systems.push(sys);
         userMessages.push(lastUser);
         stats.agent++;
@@ -486,13 +584,27 @@ export async function startMock(): Promise<MockServer> {
         if (parsed.stream) stats.stream++;
         if (call) {
           if (parsed.stream) {
-            await anthropicStreamToolCall(res, model, `toolu_mock_${toolTurns}`, call.name, call.args);
+            await anthropicStreamToolCall(
+              res,
+              model,
+              `toolu_mock_${toolTurns}`,
+              call.name,
+              call.args,
+            );
           } else {
             anthropicJson(
               res,
               model,
-              [{ type: 'tool_use', id: `toolu_mock_${toolTurns}`, name: call.name, input: call.args, index: 0 }],
-              'tool_use'
+              [
+                {
+                  type: 'tool_use',
+                  id: `toolu_mock_${toolTurns}`,
+                  name: call.name,
+                  input: call.args,
+                  index: 0,
+                },
+              ],
+              'tool_use',
             );
           }
           return;
@@ -501,7 +613,12 @@ export async function startMock(): Promise<MockServer> {
         if (parsed.stream) {
           await anthropicStreamText(res, model, answer);
         } else {
-          anthropicJson(res, model, [{ type: 'text', text: answer, index: 0 }], 'end_turn');
+          anthropicJson(
+            res,
+            model,
+            [{ type: 'text', text: answer, index: 0 }],
+            'end_turn',
+          );
         }
       });
       return;
@@ -511,7 +628,8 @@ export async function startMock(): Promise<MockServer> {
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('mock server has no port');
+  if (!address || typeof address === 'string')
+    throw new Error('mock server has no port');
   return {
     port: address.port,
     stats,
@@ -531,6 +649,6 @@ export async function startMock(): Promise<MockServer> {
       new Promise((resolve) => {
         server.close(() => resolve());
         server.closeAllConnections();
-      })
+      }),
   };
 }

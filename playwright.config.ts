@@ -5,5 +5,5 @@ export default defineConfig({
   timeout: 90_000,
   workers: 1,
   retries: 0,
-  reporter: 'list'
+  reporter: 'list',
 });

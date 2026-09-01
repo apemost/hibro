@@ -1,8 +1,8 @@
 // Provider listbox that opens upward and stays within the narrow side panel.
 
-import { useEffect, useRef, useState } from "react";
-import type { ProviderProfile } from "@/shared/providers";
-import { usePanelI18n } from "./i18n";
+import { useEffect, useRef, useState } from 'react';
+import type { ProviderProfile } from '@/shared/providers';
+import { usePanelI18n } from './i18n';
 
 /** Formats a provider label for the side-panel picker. */
 export const profileLabel = (p: ProviderProfile): string =>
@@ -16,7 +16,12 @@ interface ProviderPickerProps {
 }
 
 /** Renders the active provider picker beside the composer. */
-export function ProviderPicker({ profiles, selectedId, disabled, onSelect }: ProviderPickerProps) {
+export function ProviderPicker({
+  profiles,
+  selectedId,
+  disabled,
+  onSelect,
+}: ProviderPickerProps) {
   const { messages } = usePanelI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -28,13 +33,13 @@ export function ProviderPicker({ profiles, selectedId, disabled, onSelect }: Pro
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
@@ -53,12 +58,22 @@ export function ProviderPicker({ profiles, selectedId, disabled, onSelect }: Pro
         <span className="provider-picker-label">
           {selected ? profileLabel(selected) : messages.noProvider}
         </span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
       {open && profiles.length > 0 && (
-        <div className="provider-menu" role="listbox" aria-label={messages.llmProvider}>
+        <div
+          className="provider-menu"
+          role="listbox"
+          aria-label={messages.llmProvider}
+        >
           {profiles.map((p) => (
             <button
               key={p.id}

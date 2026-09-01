@@ -52,7 +52,10 @@ function hasBlockedSpecialUseName(hostname: string): boolean {
     '.invalid',
     '.example',
     '.onion',
-  ].some((suffix) => hostname === suffix.replace(/^\./, '') || hostname.endsWith(suffix));
+  ].some(
+    (suffix) =>
+      hostname === suffix.replace(/^\./, '') || hostname.endsWith(suffix),
+  );
 }
 
 /** Canonicalizes an allowed public-looking HTTPS destination without fetching it. */

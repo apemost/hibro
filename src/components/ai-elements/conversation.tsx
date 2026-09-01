@@ -1,22 +1,25 @@
-"use client";
+'use client';
 
 // Lightweight AI Elements conversation components with bottom-following and
 // transient scrollbar feedback.
 
-import { cn } from "@/lib/utils";
-import type { ComponentProps, ReactNode } from "react";
-import { useEffect, useRef } from "react";
-import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { cn } from '@/lib/utils';
+import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
+import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 
 const SCROLLBAR_IDLE_DELAY_MS = 700;
-type ScrollAxis = "x" | "y";
+type ScrollAxis = 'x' | 'y';
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
 /** Provides the scrollable conversation region. */
 export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
-    className={cn("relative flex-1 overflow-x-hidden overflow-y-hidden", className)}
+    className={cn(
+      'relative flex-1 overflow-x-hidden overflow-y-hidden',
+      className,
+    )}
     initial="instant"
     resize="instant"
     role="log"
@@ -24,7 +27,9 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
   />
 );
 
-export type ConversationContentProps = ComponentProps<typeof StickToBottom.Content>;
+export type ConversationContentProps = ComponentProps<
+  typeof StickToBottom.Content
+>;
 
 /** Renders conversation content and tracks active scroll axes. */
 export const ConversationContent = ({
@@ -33,7 +38,10 @@ export const ConversationContent = ({
   ...props
 }: ConversationContentProps) => {
   const { scrollRef } = useStickToBottomContext();
-  const idleTimerRef = useRef<Record<ScrollAxis, number | null>>({ x: null, y: null });
+  const idleTimerRef = useRef<Record<ScrollAxis, number | null>>({
+    x: null,
+    y: null,
+  });
 
   useEffect(() => {
     const viewport = scrollRef.current;
@@ -52,30 +60,41 @@ export const ConversationContent = ({
 
     const markAxis = (axis: ScrollAxis) => {
       const trackInset = 2;
-      if (axis === "x") {
+      if (axis === 'x') {
         const scrollRange = viewport.scrollWidth - viewport.clientWidth;
         if (scrollRange <= 0) return;
         const trackWidth = Math.max(0, viewport.clientWidth - trackInset * 2);
         const thumbWidth = Math.max(
           32,
-          trackWidth * (viewport.clientWidth / viewport.scrollWidth)
+          trackWidth * (viewport.clientWidth / viewport.scrollWidth),
         );
         const thumbTravel = Math.max(0, trackWidth - thumbWidth);
-        const thumbLeft = trackInset + (viewport.scrollLeft / scrollRange) * thumbTravel;
-        log.style.setProperty("--conversation-scrollbar-left", `${thumbLeft}px`);
-        log.style.setProperty("--conversation-scrollbar-width", `${thumbWidth}px`);
+        const thumbLeft =
+          trackInset + (viewport.scrollLeft / scrollRange) * thumbTravel;
+        log.style.setProperty(
+          '--conversation-scrollbar-left',
+          `${thumbLeft}px`,
+        );
+        log.style.setProperty(
+          '--conversation-scrollbar-width',
+          `${thumbWidth}px`,
+        );
       } else {
         const scrollRange = viewport.scrollHeight - viewport.clientHeight;
         if (scrollRange <= 0) return;
         const trackHeight = Math.max(0, viewport.clientHeight - trackInset * 2);
         const thumbHeight = Math.max(
           32,
-          trackHeight * (viewport.clientHeight / viewport.scrollHeight)
+          trackHeight * (viewport.clientHeight / viewport.scrollHeight),
         );
         const thumbTravel = Math.max(0, trackHeight - thumbHeight);
-        const thumbTop = trackInset + (viewport.scrollTop / scrollRange) * thumbTravel;
-        log.style.setProperty("--conversation-scrollbar-top", `${thumbTop}px`);
-        log.style.setProperty("--conversation-scrollbar-height", `${thumbHeight}px`);
+        const thumbTop =
+          trackInset + (viewport.scrollTop / scrollRange) * thumbTravel;
+        log.style.setProperty('--conversation-scrollbar-top', `${thumbTop}px`);
+        log.style.setProperty(
+          '--conversation-scrollbar-height',
+          `${thumbHeight}px`,
+        );
       }
 
       log.classList.add(`is-scrolling-${axis}`);
@@ -90,16 +109,16 @@ export const ConversationContent = ({
     const markScrolling = () => {
       const nextScrollLeft = viewport.scrollLeft;
       const nextScrollTop = viewport.scrollTop;
-      if (nextScrollLeft !== previousScrollLeft) markAxis("x");
-      if (nextScrollTop !== previousScrollTop) markAxis("y");
+      if (nextScrollLeft !== previousScrollLeft) markAxis('x');
+      if (nextScrollTop !== previousScrollTop) markAxis('y');
       previousScrollLeft = nextScrollLeft;
       previousScrollTop = nextScrollTop;
     };
 
-    viewport.addEventListener("scroll", markScrolling, { passive: true });
+    viewport.addEventListener('scroll', markScrolling, { passive: true });
     return () => {
-      viewport.removeEventListener("scroll", markScrolling);
-      for (const axis of ["x", "y"] as const) {
+      viewport.removeEventListener('scroll', markScrolling);
+      for (const axis of ['x', 'y'] as const) {
         const timer = idleTimerRef.current[axis];
         if (timer !== null) window.clearTimeout(timer);
         clearAxis(axis);
@@ -109,14 +128,14 @@ export const ConversationContent = ({
 
   return (
     <StickToBottom.Content
-      className={cn("flex flex-col gap-4 p-3", className)}
-      scrollClassName={cn("conversation-scroll", scrollClassName)}
+      className={cn('flex flex-col gap-4 p-3', className)}
+      scrollClassName={cn('conversation-scroll', scrollClassName)}
       {...props}
     />
   );
 };
 
-export type ConversationEmptyStateProps = ComponentProps<"div"> & {
+export type ConversationEmptyStateProps = ComponentProps<'div'> & {
   title?: string;
   description?: string;
   icon?: ReactNode;
@@ -124,7 +143,7 @@ export type ConversationEmptyStateProps = ComponentProps<"div"> & {
 
 export const ConversationEmptyState = ({
   className,
-  title = "No messages yet",
+  title = 'No messages yet',
   description,
   icon,
   children,
@@ -132,8 +151,8 @@ export const ConversationEmptyState = ({
 }: ConversationEmptyStateProps) => (
   <div
     className={cn(
-      "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
-      className
+      'flex size-full flex-col items-center justify-center gap-3 p-8 text-center',
+      className,
     )}
     {...props}
   >

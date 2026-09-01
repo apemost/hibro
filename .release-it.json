@@ -1,0 +1,23 @@
+{
+  "git": {
+    "commitMessage": "chore(release): bump version to ${version}",
+    "tagName": "v${version}",
+    "tagAnnotation": "Release v${version}",
+    "push": true
+  },
+  "github": {
+    "release": false
+  },
+  "npm": {
+    "publish": false
+  },
+  "hooks": {
+    "before:bump": "node scripts/validate-release-version.mjs ${version}",
+    "after:bump": "pnpm exec prettier manifest.json --write"
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "out": "manifest.json"
+    }
+  }
+}

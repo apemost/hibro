@@ -1,13 +1,13 @@
 // Keeps the side-panel provider picker in sync with extension storage.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   ACTIVE_KEY,
   PROVIDERS_KEY,
   type ProviderProfile,
   readProviderConfig,
-  writeActive
-} from "@/shared/providers";
+  writeActive,
+} from '@/shared/providers';
 
 /** Reads provider profiles and changes the profile used by the next request. */
 export function useProviders() {
@@ -35,9 +35,9 @@ export function useProviders() {
     void refresh();
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
-      area: string
+      area: string,
     ) => {
-      if (area !== "local") return;
+      if (area !== 'local') return;
       if (changes[PROVIDERS_KEY] || changes[ACTIVE_KEY]) void refresh();
     };
     chrome.storage.onChanged.addListener(onChanged);

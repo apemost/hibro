@@ -30,7 +30,10 @@ function isTrustedPanelPort(port: chrome.runtime.Port): boolean {
   if (!sender.url) return false;
   try {
     const senderUrl = new URL(sender.url);
-    return senderUrl.origin === extensionOrigin && senderUrl.pathname === '/src/panel.html';
+    return (
+      senderUrl.origin === extensionOrigin &&
+      senderUrl.pathname === '/src/panel.html'
+    );
   } catch {
     return false;
   }
@@ -46,7 +49,10 @@ function parseContentLength(value: string | null): number | null {
   return length;
 }
 
-async function readLimitedBody(response: Response, signal: AbortSignal): Promise<Uint8Array> {
+async function readLimitedBody(
+  response: Response,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
   if (!response.body) throw new RemoteImageFetchError('unsafe-response');
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -107,9 +113,13 @@ async function fetchRemoteImage(
     ) {
       throw new RemoteImageFetchError('unsafe-response');
     }
-    const mediaType = normalizeImageMediaType(response.headers.get('content-type') ?? '');
+    const mediaType = normalizeImageMediaType(
+      response.headers.get('content-type') ?? '',
+    );
     if (!mediaType) throw new RemoteImageFetchError('unsafe-response');
-    const contentLength = parseContentLength(response.headers.get('content-length'));
+    const contentLength = parseContentLength(
+      response.headers.get('content-length'),
+    );
     const bytes = await readLimitedBody(response, controller.signal);
     if (
       (contentLength !== null && contentLength !== bytes.byteLength) ||
@@ -149,7 +159,8 @@ export function attachRemoteImagePort(port: chrome.runtime.Port): void {
       ) {
         const invalid: RemoteImageResult = {
           type: 'remote-image-result',
-          requestId: typeof request.requestId === 'string' ? request.requestId : '',
+          requestId:
+            typeof request.requestId === 'string' ? request.requestId : '',
           ok: false,
           error: 'invalid-request',
         };
@@ -157,7 +168,10 @@ export function attachRemoteImagePort(port: chrome.runtime.Port): void {
         return;
       }
       try {
-        const { mediaType, bytes } = await fetchRemoteImage(request.url, controller.signal);
+        const { mediaType, bytes } = await fetchRemoteImage(
+          request.url,
+          controller.signal,
+        );
         const result: RemoteImageResult = {
           type: 'remote-image-result',
           requestId: request.requestId,
@@ -172,7 +186,10 @@ export function attachRemoteImagePort(port: chrome.runtime.Port): void {
           type: 'remote-image-result',
           requestId: request.requestId,
           ok: false,
-          error: error instanceof RemoteImageFetchError ? error.code : 'network-error',
+          error:
+            error instanceof RemoteImageFetchError
+              ? error.code
+              : 'network-error',
         };
         try {
           port.postMessage(result);

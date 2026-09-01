@@ -13,7 +13,9 @@ const SUPPORTED_IMAGE_MEDIA_TYPES = new Set<HibroImageMediaType>([
 ]);
 
 /** Returns a supported raster media type without optional parameters. */
-export function normalizeImageMediaType(value: string): HibroImageMediaType | null {
+export function normalizeImageMediaType(
+  value: string,
+): HibroImageMediaType | null {
   const normalized = value.split(';', 1)[0].trim().toLowerCase();
   return SUPPORTED_IMAGE_MEDIA_TYPES.has(normalized as HibroImageMediaType)
     ? (normalized as HibroImageMediaType)
@@ -50,7 +52,8 @@ export function decodeImageBase64(
   mediaType: HibroImageMediaType,
   expectedByteLength?: number,
 ): Uint8Array | null {
-  if (!base64 || base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4) return null;
+  if (!base64 || base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4)
+    return null;
   let decoded: string;
   try {
     decoded = atob(base64);
@@ -64,7 +67,9 @@ export function decodeImageBase64(
   ) {
     return null;
   }
-  const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+  const bytes = Uint8Array.from(decoded, (character) =>
+    character.charCodeAt(0),
+  );
   return hasMatchingImageSignature(bytes, mediaType) ? bytes : null;
 }
 
@@ -73,7 +78,9 @@ export function imageBytesToBase64(bytes: Uint8Array): string {
   const chunkSize = 0x8000;
   let binary = '';
   for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, offset + chunkSize),
+    );
   }
   return btoa(binary);
 }

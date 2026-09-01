@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
 
 export default defineConfig({
   lang: 'en-US',
@@ -26,13 +26,11 @@ export default defineConfig({
       },
       {
         text: 'More guides',
-        items: [
-          { text: 'Hibro skills', link: '/skills' },
-        ],
+        items: [{ text: 'Hibro skills', link: '/skills' }],
       },
     ],
     search: {
       provider: 'local',
     },
   },
-})
+});

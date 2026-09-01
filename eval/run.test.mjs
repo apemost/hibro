@@ -16,14 +16,22 @@ test('missing credential guidance includes the compatible provider base URL requ
       HIBRO_EVAL_API_KEY: '',
       HIBRO_EVAL_MODEL: 'test-model',
       HIBRO_EVAL_BASE_URL: '',
-      PLAYWRIGHT_BROWSERS_PATH: path.join(ROOT, '.local', 'tmp', 'missing-browsers')
-    }
+      PLAYWRIGHT_BROWSERS_PATH: path.join(
+        ROOT,
+        '.local',
+        'tmp',
+        'missing-browsers',
+      ),
+    },
   });
 
   const output = `${run.stdout}${run.stderr}`;
   assert.equal(run.status, 2, output);
   assert.match(output, /HIBRO_EVAL_API_KEY is required/);
-  assert.match(output, /HIBRO_EVAL_BASE_URL is also required for openai-compatible/);
+  assert.match(
+    output,
+    /HIBRO_EVAL_BASE_URL is also required for openai-compatible/,
+  );
   assert.doesNotMatch(output, /optional[^\n]*HIBRO_EVAL_BASE_URL/i);
   assert.doesNotMatch(output, /browserType\.launchPersistentContext/);
 });
@@ -38,8 +46,13 @@ test('real eval rejects an OpenAI-compatible profile without a base URL before l
       HIBRO_EVAL_API_KEY: 'test-key',
       HIBRO_EVAL_MODEL: 'test-model',
       HIBRO_EVAL_BASE_URL: '',
-      PLAYWRIGHT_BROWSERS_PATH: path.join(ROOT, '.local', 'tmp', 'missing-browsers')
-    }
+      PLAYWRIGHT_BROWSERS_PATH: path.join(
+        ROOT,
+        '.local',
+        'tmp',
+        'missing-browsers',
+      ),
+    },
   });
 
   const output = `${run.stdout}${run.stderr}`;

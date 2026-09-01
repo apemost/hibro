@@ -6,7 +6,7 @@ import {
   openProviderProfiles,
   rejectProviderEnvelope,
   sealProviderProfiles,
-  validateProviderProfiles
+  validateProviderProfiles,
 } from './providerVault';
 
 export type ProviderType = 'openai-compatible' | 'openai' | 'anthropic';
@@ -31,7 +31,11 @@ export const PRIVACY_CONSENT_KEY = 'hibroPrivacyConsent';
 
 /** Returns whether the user accepted the provider data-use notice. */
 export async function readPrivacyConsent(): Promise<boolean> {
-  return (await chrome.storage.local.get(PRIVACY_CONSENT_KEY))[PRIVACY_CONSENT_KEY] === true;
+  return (
+    (await chrome.storage.local.get(PRIVACY_CONSENT_KEY))[
+      PRIVACY_CONSENT_KEY
+    ] === true
+  );
 }
 
 /** Stores the user's current provider data-use choice. */
@@ -67,16 +71,20 @@ interface LegacyProviderConfig {
   model?: string;
 }
 
-function legacyProfile(value: LegacyProviderConfig | undefined): ProviderProfile | undefined {
+function legacyProfile(
+  value: LegacyProviderConfig | undefined,
+): ProviderProfile | undefined {
   if (!value?.apiKey || !value.model) return undefined;
   return {
     id: 'migrated',
     name:
-      value.provider && value.provider !== 'openai-compatible' ? value.provider : 'Default',
+      value.provider && value.provider !== 'openai-compatible'
+        ? value.provider
+        : 'Default',
     provider: value.provider ?? 'openai-compatible',
     baseUrl: value.baseUrl,
     apiKey: value.apiKey,
-    model: value.model
+    model: value.model,
   };
 }
 
@@ -89,7 +97,7 @@ export async function readProviderConfig(): Promise<ProviderConfig> {
   const all = (await chrome.storage.local.get([
     PROVIDERS_KEY,
     ACTIVE_KEY,
-    'hibroConfig'
+    'hibroConfig',
   ])) as {
     [PROVIDERS_KEY]?: unknown;
     [ACTIVE_KEY]?: string | null;
@@ -101,15 +109,20 @@ export async function readProviderConfig(): Promise<ProviderConfig> {
   let activeId = all[ACTIVE_KEY] ?? null;
 
   if (isProviderEnvelopeRecord(storedProfiles)) {
-    if (!isProviderEnvelope(storedProfiles)) rejectProviderEnvelope(storedProfiles);
+    if (!isProviderEnvelope(storedProfiles))
+      rejectProviderEnvelope(storedProfiles);
     profiles = await openProviderProfiles(storedProfiles);
     if (all.hibroConfig !== undefined) await removeLegacyProvider();
   } else if (storedProfiles === undefined || Array.isArray(storedProfiles)) {
-    profiles = storedProfiles === undefined ? [] : validateProviderProfiles(storedProfiles);
+    profiles =
+      storedProfiles === undefined
+        ? []
+        : validateProviderProfiles(storedProfiles);
 
     // Older installations stored either a plaintext profile list or one
     // unnamed provider. Encrypt either format before returning it to callers.
-    const migrated = profiles.length === 0 ? legacyProfile(all.hibroConfig) : undefined;
+    const migrated =
+      profiles.length === 0 ? legacyProfile(all.hibroConfig) : undefined;
     if (migrated) {
       profiles = [migrated];
       activeId = migrated.id;
@@ -119,7 +132,7 @@ export async function readProviderConfig(): Promise<ProviderConfig> {
       const envelope = await sealProviderProfiles(profiles, true);
       await chrome.storage.local.set({
         [PROVIDERS_KEY]: envelope,
-        ...(migrated ? { [ACTIVE_KEY]: activeId } : {})
+        ...(migrated ? { [ACTIVE_KEY]: activeId } : {}),
       });
       if (all.hibroConfig !== undefined) await removeLegacyProvider();
     }
@@ -142,9 +155,13 @@ export function activeProfile(c: ProviderConfig): ProviderProfile | undefined {
 }
 
 /** Encrypts and replaces the stored provider list. */
-export async function writeProfiles(profiles: ProviderProfile[]): Promise<void> {
+export async function writeProfiles(
+  profiles: ProviderProfile[],
+): Promise<void> {
   validateProviderProfiles(profiles);
-  const stored = (await chrome.storage.local.get(PROVIDERS_KEY))[PROVIDERS_KEY] as unknown;
+  const stored = (await chrome.storage.local.get(PROVIDERS_KEY))[
+    PROVIDERS_KEY
+  ] as unknown;
   let createIfMissing = true;
 
   if (isProviderEnvelopeRecord(stored)) {
@@ -154,7 +171,8 @@ export async function writeProfiles(profiles: ProviderProfile[]): Promise<void> 
     await openProviderProfiles(stored);
     createIfMissing = false;
   } else if (stored !== undefined) {
-    if (!Array.isArray(stored)) rejectProviderEnvelope(stored as Record<string, unknown>);
+    if (!Array.isArray(stored))
+      rejectProviderEnvelope(stored as Record<string, unknown>);
     validateProviderProfiles(stored);
   }
 
@@ -171,7 +189,7 @@ export async function writeActive(id: string): Promise<void> {
 
 /** Checks the fields required to call a provider and narrows the profile type. */
 export function isComplete(
-  p: ProviderProfile | undefined
+  p: ProviderProfile | undefined,
 ): p is ProviderProfile {
   return (
     !!p &&

@@ -1,13 +1,13 @@
 // Composer recall history derived from stored conversations. Browsing preserves
 // the current draft and follows storage changes from other extension pages.
 
-import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
 import {
   CONVERSATIONS_KEY,
   MAX_INPUT_HISTORY,
   deriveInputHistory,
-  readConversationState
-} from "@/shared/conversations";
+  readConversationState,
+} from '@/shared/conversations';
 
 interface UseInputHistoryOptions {
   text: string;
@@ -19,7 +19,7 @@ export function useInputHistory({ text, setText }: UseInputHistoryOptions) {
   const entriesRef = useRef<string[]>([]);
   // Null means the user is not browsing history.
   const posRef = useRef<number | null>(null);
-  const draftRef = useRef("");
+  const draftRef = useRef('');
   // Keep a just-sent message available while its debounced save catches up.
   const lastSentRef = useRef<string | null>(null);
 
@@ -36,9 +36,9 @@ export function useInputHistory({ text, setText }: UseInputHistoryOptions) {
     void refresh();
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
-      area: string
+      area: string,
     ) => {
-      if (area !== "local" || !changes[CONVERSATIONS_KEY]) return;
+      if (area !== 'local' || !changes[CONVERSATIONS_KEY]) return;
       void refresh();
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -58,7 +58,7 @@ export function useInputHistory({ text, setText }: UseInputHistoryOptions) {
   // Returns true when history navigation consumed the key.
   const handleKey = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return false;
       const el = e.currentTarget;
       const entries = entriesRef.current;
       // End browsing if storage changed or the recalled text was edited.
@@ -76,11 +76,12 @@ export function useInputHistory({ text, setText }: UseInputHistoryOptions) {
         });
       };
 
-      if (e.key === "ArrowUp") {
+      if (e.key === 'ArrowUp') {
         if (entries.length === 0) return false;
         if (posRef.current === null) {
           // Preserve normal caret movement unless the caret is at the start.
-          if (text && (el.selectionStart !== 0 || el.selectionEnd !== 0)) return false;
+          if (text && (el.selectionStart !== 0 || el.selectionEnd !== 0))
+            return false;
           draftRef.current = text;
           posRef.current = entries.length - 1;
         } else if (posRef.current > 0) {
@@ -108,7 +109,7 @@ export function useInputHistory({ text, setText }: UseInputHistoryOptions) {
       moveCaretToEnd(recalled);
       return true;
     },
-    [text, setText]
+    [text, setText],
   );
 
   return { record, handleKey };

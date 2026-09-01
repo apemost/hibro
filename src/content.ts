@@ -92,7 +92,9 @@ const contentScriptState = globalThis as typeof globalThis & {
 // Recovery can inject this bundle before the manifest's document_idle run.
 // Replace the previous listener when the bundle runs again in this document.
 if (contentScriptState.__hibroContentMessageListener__) {
-  chrome.runtime.onMessage.removeListener(contentScriptState.__hibroContentMessageListener__);
+  chrome.runtime.onMessage.removeListener(
+    contentScriptState.__hibroContentMessageListener__,
+  );
 }
 chrome.runtime.onMessage.addListener(handleContentMessage);
 contentScriptState.__hibroContentMessageListener__ = handleContentMessage;
@@ -117,7 +119,9 @@ function handleContentMessage(
       sendResponse(getOverview());
       break;
     case 'hibro:elements':
-      sendResponse({ elements: snapshotElements(msg.filter) } satisfies ElementsResponse);
+      sendResponse({
+        elements: snapshotElements(msg.filter),
+      } satisfies ElementsResponse);
       break;
     case 'hibro:visible-text':
       sendResponse({ text: visibleText() } satisfies VisibleTextResponse);
@@ -157,7 +161,10 @@ function readRoot(): HTMLElement {
 // A valid selector that matches nothing must not silently fall back to the
 // whole body either. Both cases return an explanatory notice for the model so
 // it can retry with a different selector or omit it.
-function selectSubtree(selector: string): { root?: HTMLElement; error?: string } {
+function selectSubtree(selector: string): {
+  root?: HTMLElement;
+  error?: string;
+} {
   let root: HTMLElement | null;
   try {
     root = document.querySelector<HTMLElement>(selector);
@@ -194,7 +201,12 @@ function toMarkdown(selector?: string): MarkdownResponse {
     // The notice travels in the markdown field: the service worker forwards it
     // to the model as the tool result, which can then correct the call.
     if (picked.error) {
-      return { title: document.title, url: location.href, markdown: picked.error, truncated: false };
+      return {
+        title: document.title,
+        url: location.href,
+        markdown: picked.error,
+        truncated: false,
+      };
     }
     root = picked.root;
   } else {
@@ -212,7 +224,12 @@ function toMarkdown(selector?: string): MarkdownResponse {
     .replace(/[ \t]+\n/g, '\n')
     .trim();
   if (clean.length <= MAX_MARKDOWN_LENGTH) {
-    return { title: document.title, url: location.href, markdown: clean, truncated: false };
+    return {
+      title: document.title,
+      url: location.href,
+      markdown: clean,
+      truncated: false,
+    };
   }
   return {
     title: document.title,
@@ -226,8 +243,10 @@ function toMarkdown(selector?: string): MarkdownResponse {
 // The agent uses this to decide which perception tool to call next.
 function getOverview(): OverviewResponse {
   const meta =
-    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content ||
-    document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.content ||
+    document.querySelector<HTMLMetaElement>('meta[name="description"]')
+      ?.content ||
+    document.querySelector<HTMLMetaElement>('meta[property="og:description"]')
+      ?.content ||
     '';
   const heading =
     document.querySelector('h1')?.textContent ||
@@ -263,15 +282,19 @@ function snapshotElements(filter?: string): SnapshotElement[] {
   for (const el of candidates) {
     if (!el.getClientRects().length) continue;
     const tag = el.tagName.toLowerCase();
-    const text = truncate(el.innerText || (el as HTMLInputElement).value || '', 60);
+    const text = truncate(
+      el.innerText || (el as HTMLInputElement).value || '',
+      60,
+    );
     const name = el.getAttribute('name') || undefined;
     const placeholder = el.getAttribute('placeholder') || undefined;
-    const href = el instanceof HTMLAnchorElement ? truncate(el.href, 120) : undefined;
+    const href =
+      el instanceof HTMLAnchorElement ? truncate(el.href, 120) : undefined;
     if (
       needle &&
       ![text, href, name, placeholder, tag]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(needle))
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle))
     ) {
       continue;
     }
@@ -297,7 +320,10 @@ function collectSnapshot(): SnapshotResponse {
   return {
     title: document.title,
     url: location.href,
-    visibleText: truncate(document.body ? document.body.innerText : '', MAX_SNAPSHOT_TEXT),
+    visibleText: truncate(
+      document.body ? document.body.innerText : '',
+      MAX_SNAPSHOT_TEXT,
+    ),
     elements: snapshotElements(),
   };
 }
@@ -354,6 +380,11 @@ function elementDetail(id: number): ElementDetailResponse | null {
     placeholder: el.getAttribute('placeholder') || '',
     href: el instanceof HTMLAnchorElement ? truncate(el.href, 200) : '',
     attrs,
-    bbox: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+    bbox: {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      w: Math.round(rect.width),
+      h: Math.round(rect.height),
+    },
   };
 }

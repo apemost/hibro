@@ -154,7 +154,7 @@ async function providerKey(createIfMissing: boolean): Promise<CryptoKey> {
     candidate = (await crypto.subtle.generateKey(
       { name: 'AES-GCM', length: 256 },
       false,
-      ['encrypt', 'decrypt']
+      ['encrypt', 'decrypt'],
     )) as CryptoKey;
   } catch {
     throw asVaultError('vault-unavailable');
@@ -170,17 +170,20 @@ async function providerKey(createIfMissing: boolean): Promise<CryptoKey> {
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
+  return btoa(binary)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/u, '');
 }
 
 function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   if (!value || !/^[A-Za-z0-9_-]+$/u.test(value) || value.length % 4 === 1) {
     throw asVaultError('envelope-invalid');
   }
-  const padded = value.replaceAll('-', '+').replaceAll('_', '/').padEnd(
-    value.length + ((4 - (value.length % 4)) % 4),
-    '='
-  );
+  const padded = value
+    .replaceAll('-', '+')
+    .replaceAll('_', '/')
+    .padEnd(value.length + ((4 - (value.length % 4)) % 4), '=');
   try {
     const binary = atob(padded);
     const bytes = new Uint8Array(binary.length);
@@ -212,12 +215,16 @@ function isProviderProfile(value: unknown): value is ProviderProfile {
 }
 
 /** Checks whether a value belongs to the provider-envelope format. */
-export function isProviderEnvelopeRecord(value: unknown): value is Record<string, unknown> {
+export function isProviderEnvelopeRecord(
+  value: unknown,
+): value is Record<string, unknown> {
   return isRecord(value) && value.kind === 'hibro-provider-profiles';
 }
 
 /** Checks the supported provider-envelope metadata before decryption. */
-export function isProviderEnvelope(value: unknown): value is ProviderEnvelopeV1 {
+export function isProviderEnvelope(
+  value: unknown,
+): value is ProviderEnvelopeV1 {
   return (
     isProviderEnvelopeRecord(value) &&
     value.version === 1 &&
@@ -238,7 +245,7 @@ export function validateProviderProfiles(value: unknown): ProviderProfile[] {
 /** Encrypts a complete provider list with a fresh authenticated nonce. */
 export async function sealProviderProfiles(
   profiles: readonly ProviderProfile[],
-  createIfMissing: boolean
+  createIfMissing: boolean,
 ): Promise<ProviderEnvelopeV1> {
   validateProviderProfiles(profiles);
   const key = await providerKey(createIfMissing);
@@ -248,7 +255,7 @@ export async function sealProviderProfiles(
     ciphertext = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv, additionalData: AAD },
       key,
-      new TextEncoder().encode(JSON.stringify(profiles))
+      new TextEncoder().encode(JSON.stringify(profiles)),
     );
   } catch {
     throw asVaultError('vault-unavailable');
@@ -258,13 +265,13 @@ export async function sealProviderProfiles(
     version: 1,
     cipher: 'AES-GCM',
     iv: bytesToBase64Url(iv),
-    ciphertext: bytesToBase64Url(new Uint8Array(ciphertext))
+    ciphertext: bytesToBase64Url(new Uint8Array(ciphertext)),
   };
 }
 
 /** Decrypts and validates a supported provider envelope. */
 export async function openProviderProfiles(
-  envelope: ProviderEnvelopeV1
+  envelope: ProviderEnvelopeV1,
 ): Promise<ProviderProfile[]> {
   const iv = base64UrlToBytes(envelope.iv);
   const ciphertext = base64UrlToBytes(envelope.ciphertext);
@@ -276,7 +283,7 @@ export async function openProviderProfiles(
     plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv, additionalData: AAD },
       key,
-      ciphertext
+      ciphertext,
     );
   } catch {
     throw asVaultError('decrypt-failed');

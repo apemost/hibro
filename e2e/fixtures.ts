@@ -17,15 +17,23 @@ function extensionIdFromKey(key: string): string {
   const der = Buffer.from(key, 'base64');
   const hash = createHash('sha256').update(der).digest();
   return [...hash.subarray(0, 16)]
-    .map((b) => String.fromCharCode(97 + (b >> 4)) + String.fromCharCode(97 + (b & 15)))
+    .map(
+      (b) =>
+        String.fromCharCode(97 + (b >> 4)) + String.fromCharCode(97 + (b & 15)),
+    )
     .join('');
 }
 
-const manifest = JSON.parse(readFileSync(path.join(dist, 'manifest.json'), 'utf8'));
+const manifest = JSON.parse(
+  readFileSync(path.join(dist, 'manifest.json'), 'utf8'),
+);
 if (!manifest.key) throw new Error('dist/manifest.json is missing "key"');
 const extensionId = extensionIdFromKey(manifest.key);
 
-export const test = base.extend<object, { browserContext: BrowserContext; extensionId: string }>({
+export const test = base.extend<
+  object,
+  { browserContext: BrowserContext; extensionId: string }
+>({
   browserContext: [
     async ({}, use) => {
       const context = await chromium.launchPersistentContext('', {
@@ -35,14 +43,19 @@ export const test = base.extend<object, { browserContext: BrowserContext; extens
         // Playwright's default --disable-extensions kills even the one we
         // load explicitly; re-enable extensions for extension testing.
         ignoreDefaultArgs: ['--disable-extensions'],
-        args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`]
+        args: [
+          `--disable-extensions-except=${dist}`,
+          `--load-extension=${dist}`,
+        ],
       });
       // Extension registration is asynchronous; navigating to an extension
       // URL too early fails with ERR_BLOCKED_BY_CLIENT. Poll until ready.
       const probe = await context.newPage();
       for (let i = 0; i < 50; i++) {
         try {
-          const resp = await probe.goto(`chrome-extension://${extensionId}/manifest.json`);
+          const resp = await probe.goto(
+            `chrome-extension://${extensionId}/manifest.json`,
+          );
           if (resp && resp.ok) break;
         } catch {
           await new Promise((r) => setTimeout(r, 200));
@@ -52,14 +65,14 @@ export const test = base.extend<object, { browserContext: BrowserContext; extens
       await use(context);
       await context.close();
     },
-    { scope: 'worker' }
+    { scope: 'worker' },
   ],
   extensionId: [
     async ({}, use) => {
       await use(extensionId);
     },
-    { scope: 'worker' }
-  ]
+    { scope: 'worker' },
+  ],
 });
 
 export const expect = test.expect;

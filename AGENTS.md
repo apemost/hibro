@@ -11,12 +11,13 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 - Vite 8 + `@crxjs/vite-plugin` 2 (MV3 manifest rewriting, service worker / content script bundling, HMR in dev)
 - TypeScript (strict; `pnpm typecheck` runs `tsc --noEmit`; `@types/chrome` for extension APIs)
 - pnpm (pinned via `packageManager` in `package.json`; do not use npm/yarn)
+- Prettier 3.8 enforces repository formatting through `pnpm format:check`
 - React 19 + Tailwind CSS v4 (shadcn-style design tokens) for the panel and options pages, via `@vitejs/plugin-react` + `@tailwindcss/vite` alongside CRXJS
 - VitePress 1.6 builds the public documentation site from `docs/`; the browser-extension Vite build remains separate
 - `ai` (Vercel AI SDK 7) + `@ai-sdk/openai-compatible` / `@ai-sdk/openai` / `@ai-sdk/anthropic` for model calls in the service worker. All panel messages run through one streaming tool-calling loop (`streamText` + `tools` + `stopWhen` / `isStepCount` in `handleSend`): the model decides per message whether to answer, read the page with perception tools, or act on it, so a **function-calling-capable model** is required for every conversation — the earlier JSON-action protocol and the chat/task intent router are both gone. `getModel` branches on the configured `provider` (`openai-compatible` default, `openai`, or `anthropic` for the Claude Messages API)
 - AI SDK v7 rejects `role: 'system'` entries in `messages`; pass the system prompt through the `instructions` option instead (see `callAI` in `src/background.ts`)
 - Page **actions** run over `chrome.debugger` CDP (real `Input.*` events, scroll-into-view + focus) in `src/cdp.ts`; page **reads / perception** (Markdown via `turndown`, structural overview, tagged interactive elements, viewport text, element detail) run in the content script (`src/content.ts`)
-- Vercel **AI Elements** chat components live (trimmed) in `src/components/ai-elements/` (`Conversation` / `Message` / `MessageResponse` (Streamdown) / `Tool`). The panel drives them from its own React state fed by the service-worker port, not `useChat`/HTTP. Streamdown is the Markdown renderer; beyond `cjk` + `math`, three extra fenced blocks are enabled: ```` ```mermaid ```` diagrams (lazy `await import("mermaid")` DiagramPlugin in `src/panel/mermaidPlugin.ts` — Mermaid v11 is eval-free, MV3-CSP-safe), ```` ```chart ```` data charts (pure-JSON ECharts option, zod-validated, lazy tree-shaken ECharts in `src/panel/ChartBlock.tsx`), and ```` ```html ```` blocks with a Code/Preview toggle (sandboxed, network-less iframe preview in `src/panel/HtmlBlock.tsx`). Markdown image URLs render as inert approval cards; the dedicated `hibro-remote-image` worker port performs a guarded one-time fetch after a click and returns validated bytes for local Blob rendering. Custom renderers gate mid-stream behavior on `src/panel/partStreaming.ts` (Streamdown's `isIncomplete` can't see an open fence — remend auto-closes it). The Shiki `code` plugin stays dropped (bundle size).
+- Vercel **AI Elements** chat components live (trimmed) in `src/components/ai-elements/` (`Conversation` / `Message` / `MessageResponse` (Streamdown) / `Tool`). The panel drives them from its own React state fed by the service-worker port, not `useChat`/HTTP. Streamdown is the Markdown renderer; beyond `cjk` + `math`, three extra fenced blocks are enabled: ` ```mermaid ` diagrams (lazy `await import("mermaid")` DiagramPlugin in `src/panel/mermaidPlugin.ts` — Mermaid v11 is eval-free, MV3-CSP-safe), ` ```chart ` data charts (pure-JSON ECharts option, zod-validated, lazy tree-shaken ECharts in `src/panel/ChartBlock.tsx`), and ` ```html ` blocks with a Code/Preview toggle (sandboxed, network-less iframe preview in `src/panel/HtmlBlock.tsx`). Markdown image URLs render as inert approval cards; the dedicated `hibro-remote-image` worker port performs a guarded one-time fetch after a click and returns validated bytes for local Blob rendering. Custom renderers gate mid-stream behavior on `src/panel/partStreaming.ts` (Streamdown's `isIncomplete` can't see an open fence — remend auto-closes it). The Shiki `code` plugin stays dropped (bundle size).
 - Panel ↔ service worker use a structured-part protocol (`src/shared/protocol.ts`): the worker streams `PanelEvent`s (`run-start` / `part-add` / `part-delta` / `tool-update` / `run-end` / `status` / `error`) that the panel folds into `UIMessage`-style parts (text / reasoning / provider-inline image asset / tool-invocation).
 - English is the source language for code, comments, docs, and translation keys. Settings and the side panel contain supported Simplified Chinese UI translations (`src/options/i18n.ts`, `src/panel/i18n.tsx`) over the shared storage contract in `src/shared/language.ts`
 
@@ -25,11 +26,14 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 ```bash
 pnpm install   # install dependencies
 pnpm build     # production build → dist/ (git-ignored)
+pnpm release [patch|minor|major|x.y.z] # stable Chrome/Edge version: bump, format, commit, tag, and push
 pnpm package:extension -- <tag> [source] [output] # package a built extension as a tag-named ZIP
 pnpm dev       # dev mode with HMR → load the same dist/
 pnpm docs:dev  # local VitePress documentation server
 pnpm docs:build # production documentation build → docs/.vitepress/dist/
 pnpm docs:preview # preview the built documentation site
+pnpm format   # format supported repository files
+pnpm format:check # verify repository formatting without writing
 pnpm typecheck # strict TS check (tsc --noEmit)
 pnpm test:package # verify tag-based extension ZIP packaging
 pnpm test:e2e  # build + Playwright e2e (local mock AI; first run: playwright install chromium)
@@ -42,8 +46,10 @@ Load `dist/` via `chrome://extensions` → Developer mode → "Load unpacked".
 
 ## Project structure
 
-```
+````
 pnpm-workspace.yaml # workspace boundary for the extension and documentation site
+.prettierrc.yaml   # repository formatting policy
+.release-it.json   # release-it Git/tag policy, version validation, formatting, and synchronization
 manifest.json       # MV3 manifest: debugger + scripting + sidePanel + storage permissions, <all_urls> host
 vite.config.js      # Vite + CRXJS config
 .github/
@@ -64,7 +70,8 @@ docs/
 public/
 └── icons/          # Extension icons: icon.svg master + icon-16/32/48/128.png regenerated on change
 scripts/
-└── package-extension.mjs # validates a tag and packages dist contents at the ZIP root
+├── package-extension.mjs # validates a tag and packages dist contents at the ZIP root
+└── validate-release-version.mjs # rejects browser-incompatible release versions before bumping
 skills/
 └── <name>/SKILL.md # Built-in Agent Skills bundled with the extension
 src/
@@ -120,7 +127,7 @@ eval/
 test/
 ├── docs-build.test.mjs  # Real VitePress artifact and public-route regression
 └── package-extension.test.mjs # Real ZIP layout and tag-safety regressions
-```
+````
 
 ## Conventions
 

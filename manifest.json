@@ -10,9 +10,7 @@
     "storage",
     "unlimitedStorage"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' blob: data:"
   },
@@ -22,12 +20,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "src/content.ts"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["src/content.ts"],
       "run_at": "document_idle"
     }
   ],

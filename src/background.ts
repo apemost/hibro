@@ -1,12 +1,22 @@
 // Runs model requests, page tools, and side-panel messaging in the extension
 // service worker. Provider credentials come from extension storage.
 
-import { generateText, streamText, tool, isStepCount, type ModelMessage } from 'ai';
+import {
+  generateText,
+  streamText,
+  tool,
+  isStepCount,
+  type ModelMessage,
+} from 'ai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
-import { resolveActiveSkills, buildSkillInstructions, buildSkillSummary } from './skills';
+import {
+  resolveActiveSkills,
+  buildSkillInstructions,
+  buildSkillSummary,
+} from './skills';
 import { cdpClick, cdpType, cdpScroll, cdpNavigate, cdpPressKey } from './cdp';
 import type { HibroHistoryMessage, PanelEvent } from './shared/protocol';
 import {
@@ -14,10 +24,13 @@ import {
   isComplete,
   isSecureProviderBaseUrl,
   readPrivacyConsent,
-  readProviderConfig
+  readProviderConfig,
 } from './shared/providers';
 import { ProviderVaultError } from './shared/providerVault';
-import { normalizeImageMediaType, decodeImageBase64 } from './shared/imageAssets';
+import {
+  normalizeImageMediaType,
+  decodeImageBase64,
+} from './shared/imageAssets';
 import { REMOTE_IMAGE_PORT } from './shared/remoteImages';
 import { attachRemoteImagePort } from './remoteImages';
 
@@ -51,17 +64,17 @@ async function getConfig() {
   const profile = activeProfile(await readProviderConfig());
   if (!isComplete(profile)) {
     throw new Error(
-      'No LLM provider is set up. Open the extension options (right-click the extension icon, or use Settings in the side panel) and add or select a provider.'
+      'No LLM provider is set up. Open the extension options (right-click the extension icon, or use Settings in the side panel) and add or select a provider.',
     );
   }
   if (!isSecureProviderBaseUrl(profile.baseUrl)) {
     throw new Error(
-      'Remote LLM provider URLs must use HTTPS. HTTP is allowed only for localhost and loopback addresses.'
+      'Remote LLM provider URLs must use HTTPS. HTTP is allowed only for localhost and loopback addresses.',
     );
   }
   if (!(await readPrivacyConsent())) {
     throw new ProviderConsentRequiredError(
-      'Review and accept the provider data-use notice in Settings before starting a chat.'
+      'Review and accept the provider data-use notice in Settings before starting a chat.',
     );
   }
   return profile;
@@ -109,7 +122,7 @@ chrome.runtime.onConnect.addListener((port) => {
           text: friendlyError(err),
           ...(err instanceof ProviderConsentRequiredError
             ? { action: 'open-provider-settings' as const }
-            : {})
+            : {}),
         });
       }
     })();
@@ -126,7 +139,7 @@ function emit(port: chrome.runtime.Port, event: PanelEvent): void {
 
 function friendlyError(err: unknown): string {
   if (err instanceof ProviderVaultError) {
-    return "Hibro couldn’t unlock the saved LLM provider settings. Open Settings for details.";
+    return 'Hibro couldn’t unlock the saved LLM provider settings. Open Settings for details.';
   }
   const msg = String((err instanceof Error && err.message) || err);
   if (msg.includes('Failed to fetch')) {
@@ -161,14 +174,18 @@ async function getModel() {
   if (profile.provider === 'anthropic') {
     const anthropic = createAnthropic({
       apiKey: profile.apiKey,
-      ...(profile.baseUrl ? { baseURL: profile.baseUrl.replace(/\/+$/, '') } : {}),
+      ...(profile.baseUrl
+        ? { baseURL: profile.baseUrl.replace(/\/+$/, '') }
+        : {}),
     });
     return anthropic.languageModel(profile.model);
   }
   if (profile.provider === 'openai') {
     const openai = createOpenAI({
       apiKey: profile.apiKey,
-      ...(profile.baseUrl ? { baseURL: profile.baseUrl.replace(/\/+$/, '') } : {}),
+      ...(profile.baseUrl
+        ? { baseURL: profile.baseUrl.replace(/\/+$/, '') }
+        : {}),
     });
     return openai.chat(profile.model);
   }
@@ -182,21 +199,27 @@ async function getModel() {
 
 // One non-streaming model call, used by the selection-explain path. (The panel
 // run loop streams via streamText in handleSend.) Throws on an empty reply.
-async function callAI(messages: ChatMessage[], signal?: AbortSignal): Promise<string> {
+async function callAI(
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise<string> {
   const model = await getModel();
   // AI SDK v7 rejects role:'system' entries inside `messages`; lift the system
   // prompt(s) into the `instructions` option. The provider serializes them
   // back as a leading system message in the request body, so the wire format
   // (and any OpenAI-compatible endpoint) is unchanged.
   const instructions =
-    messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n') || undefined;
+    messages
+      .filter((m) => m.role === 'system')
+      .map((m) => m.content)
+      .join('\n\n') || undefined;
   const turns = messages.filter((m) => m.role !== 'system') as ModelMessage[];
   const { text } = await generateText({
     model,
     messages: turns,
     instructions,
     temperature: 0.3,
-    abortSignal: signal
+    abortSignal: signal,
   });
   if (!text) throw new Error('The AI returned an empty response.');
   return text;
@@ -205,13 +228,19 @@ async function callAI(messages: ChatMessage[], signal?: AbortSignal): Promise<st
 // Flattens the panel's part-typed history into plain user/assistant text turns.
 // Only text parts are carried back; reasoning and tool steps are display-only
 // and are not resent to the model.
-function flattenHistory(history: HibroHistoryMessage[] | undefined): { role: 'user' | 'assistant'; content: string }[] {
+function flattenHistory(
+  history: HibroHistoryMessage[] | undefined,
+): { role: 'user' | 'assistant'; content: string }[] {
   if (!Array.isArray(history)) return [];
   return history
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({
       role: m.role,
-      content: m.parts.filter((p) => p.type === 'text').map((p) => p.text).join('') || '(no text)',
+      content:
+        m.parts
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text)
+          .join('') || '(no text)',
     }));
 }
 
@@ -226,7 +255,10 @@ function sendToTabOnce<T>(
   return Promise.race([
     chrome.tabs.sendMessage(tabId, msg) as Promise<T>,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('TAB_MESSAGE_TIMEOUT')), TAB_MESSAGE_TIMEOUT_MS),
+      setTimeout(
+        () => reject(new Error('TAB_MESSAGE_TIMEOUT')),
+        TAB_MESSAGE_TIMEOUT_MS,
+      ),
     ),
   ]);
 }
@@ -237,9 +269,10 @@ function isMissingContentScriptError(err: unknown): boolean {
 }
 
 async function injectContentScript(tabId: number): Promise<void> {
-  const files = chrome.runtime
-    .getManifest()
-    .content_scripts?.flatMap((entry) => entry.js ?? []) ?? [];
+  const files =
+    chrome.runtime
+      .getManifest()
+      .content_scripts?.flatMap((entry) => entry.js ?? []) ?? [];
   if (!files.length) throw new Error('Hibro content script bundle is missing.');
   await chrome.scripting.executeScript({
     target: { tabId },
@@ -268,13 +301,13 @@ async function sendToTab<T>(
 // --- The assistant loop ---
 
 const ASSISTANT_SYSTEM_PROMPT = [
-  'You are a browser assistant for the current web page. You answer questions about the page, and you can operate the page with tools. Complete the user\'s request by calling tools when needed, then write a final answer.',
+  "You are a browser assistant for the current web page. You answer questions about the page, and you can operate the page with tools. Complete the user's request by calling tools when needed, then write a final answer.",
   '',
   'Work by progressive perception: each user message arrives with only a cheap structural overview of the page, never the full page content. Perceive what you need with tools, and do not assume page state you have not perceived.',
   '1. To answer a question about the page, first read the relevant part with read_page_as_markdown (article text, optionally scoped by CSS selector) or get_visible_text (what is on screen), then ground the answer in what you read. Never invent page content. Answer directly only when the overview or the conversation already covers the question.',
   '2. Before acting, call list_interactive_elements to see clickable/typeable elements and their ids. Element ids come ONLY from list_interactive_elements and are valid only until the page changes.',
   '3. After an action that changes the page (a click that navigates, navigate, or a submit), re-perceive before the next action; ids and content may have changed.',
-  '4. When the request is complete or you cannot proceed, stop calling tools and write a concise final answer in the user\'s language.',
+  "4. When the request is complete or you cannot proceed, stop calling tools and write a concise final answer in the user's language.",
   '',
   'Tools:',
   '- get_page_overview(): title, url, meta description, main heading, and counts of links/inputs/forms.',
@@ -312,11 +345,22 @@ async function runWithCard<T>(
 ): Promise<unknown> {
   emit({
     type: 'part-add',
-    part: { type: 'tool-invocation', toolCallId, toolName, state: 'input-available', input },
+    part: {
+      type: 'tool-invocation',
+      toolCallId,
+      toolName,
+      state: 'input-available',
+      input,
+    },
   });
   try {
     const output = await fn();
-    emit({ type: 'tool-update', toolCallId, state: 'output-available', output: output as unknown });
+    emit({
+      type: 'tool-update',
+      toolCallId,
+      state: 'output-available',
+      output: output as unknown,
+    });
     return output;
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);
@@ -356,7 +400,9 @@ async function handleSend(
   // snapshot up front. A page we cannot reach at all (restricted scheme, or an
   // orphaned content script) fails fast with the friendly communication error:
   // the loop can neither read nor reliably act on such a page.
-  const overview = await sendToTab<Record<string, unknown>>(tabId, { type: 'hibro:overview' });
+  const overview = await sendToTab<Record<string, unknown>>(tabId, {
+    type: 'hibro:overview',
+  });
 
   let callSeq = 0;
   const cardId = (name: string) => `call-${++callSeq}-${name}`;
@@ -376,10 +422,19 @@ async function handleSend(
         'List visible interactive elements (links, buttons, inputs, selects) each with a stable id used by click/type/get_element_detail. Optional filter narrows by text/href/name (case-insensitive). Call before acting on elements.',
       inputSchema: z.object({ filter: z.string().optional() }),
       execute: async ({ filter }) =>
-        runWithCard(emit, cardId('elements'), 'list_interactive_elements', { filter }, async () => {
-          const r = await sendToTab<{ elements: unknown[] }>(tabId, { type: 'hibro:elements', filter });
-          return r.elements;
-        }),
+        runWithCard(
+          emit,
+          cardId('elements'),
+          'list_interactive_elements',
+          { filter },
+          async () => {
+            const r = await sendToTab<{ elements: unknown[] }>(tabId, {
+              type: 'hibro:elements',
+              filter,
+            });
+            return r.elements;
+          },
+        ),
     }),
     get_element_detail: tool({
       description:
@@ -391,32 +446,55 @@ async function handleSend(
         ),
     }),
     get_visible_text: tool({
-      description: 'Text currently visible in the viewport. Use after scrolling.',
+      description:
+        'Text currently visible in the viewport. Use after scrolling.',
       inputSchema: z.object({}),
       execute: async () =>
-        runWithCard(emit, cardId('visibletext'), 'get_visible_text', {}, async () => {
-          const r = await sendToTab<{ text: string }>(tabId, { type: 'hibro:visible-text' });
-          return r.text;
-        }),
+        runWithCard(
+          emit,
+          cardId('visibletext'),
+          'get_visible_text',
+          {},
+          async () => {
+            const r = await sendToTab<{ text: string }>(tabId, {
+              type: 'hibro:visible-text',
+            });
+            return r.text;
+          },
+        ),
     }),
     read_page_as_markdown: tool({
       description:
         'Read the current page (or a subtree by CSS selector) as Markdown. Omit selector for the main content.',
       inputSchema: z.object({ selector: z.string().optional() }),
       execute: async ({ selector }) =>
-        runWithCard(emit, cardId('markdown'), 'read_page_as_markdown', { selector }, async () => {
-          const r = await sendToTab<{ markdown: string; truncated: boolean }>(tabId, {
-            type: 'hibro:markdown',
-            selector,
-          });
-          return r.truncated ? `${r.markdown}\n\n[content truncated]` : r.markdown;
-        }),
+        runWithCard(
+          emit,
+          cardId('markdown'),
+          'read_page_as_markdown',
+          { selector },
+          async () => {
+            const r = await sendToTab<{ markdown: string; truncated: boolean }>(
+              tabId,
+              {
+                type: 'hibro:markdown',
+                selector,
+              },
+            );
+            return r.truncated
+              ? `${r.markdown}\n\n[content truncated]`
+              : r.markdown;
+          },
+        ),
     }),
     click: tool({
-      description: 'Click an interactive element by id (scrolls it into view first).',
+      description:
+        'Click an interactive element by id (scrolls it into view first).',
       inputSchema: z.object({ id: z.union([z.number(), z.string()]) }),
       execute: async ({ id }, { abortSignal }) =>
-        runWithCard(emit, cardId('click'), 'click', { id }, () => cdpClick(tabId, id, abortSignal)),
+        runWithCard(emit, cardId('click'), 'click', { id }, () =>
+          cdpClick(tabId, id, abortSignal),
+        ),
     }),
     type: tool({
       description:
@@ -427,7 +505,9 @@ async function handleSend(
         submit: z.boolean().optional(),
       }),
       execute: async (args, { abortSignal }) =>
-        runWithCard(emit, cardId('type'), 'type', args, () => cdpType(tabId, args, abortSignal)),
+        runWithCard(emit, cardId('type'), 'type', args, () =>
+          cdpType(tabId, args, abortSignal),
+        ),
     }),
     scroll: tool({
       description:
@@ -438,13 +518,17 @@ async function handleSend(
         selector: z.string().optional(),
       }),
       execute: async (args, { abortSignal }) =>
-        runWithCard(emit, cardId('scroll'), 'scroll', args, () => cdpScroll(tabId, args, abortSignal)),
+        runWithCard(emit, cardId('scroll'), 'scroll', args, () =>
+          cdpScroll(tabId, args, abortSignal),
+        ),
     }),
     navigate: tool({
       description: 'Navigate the tab to a URL (waits for the page to load).',
       inputSchema: z.object({ url: z.string() }),
       execute: async ({ url }, { abortSignal }) =>
-        runWithCard(emit, cardId('navigate'), 'navigate', { url }, () => cdpNavigate(tabId, url, abortSignal)),
+        runWithCard(emit, cardId('navigate'), 'navigate', { url }, () =>
+          cdpNavigate(tabId, url, abortSignal),
+        ),
     }),
     press_key: tool({
       description:
@@ -454,7 +538,9 @@ async function handleSend(
         id: z.union([z.number(), z.string()]).optional(),
       }),
       execute: async ({ key, id }, { abortSignal }) =>
-        runWithCard(emit, cardId('press'), 'press_key', { key, id }, () => cdpPressKey(tabId, key, id, abortSignal)),
+        runWithCard(emit, cardId('press'), 'press_key', { key, id }, () =>
+          cdpPressKey(tabId, key, id, abortSignal),
+        ),
     }),
   };
 
@@ -465,7 +551,9 @@ async function handleSend(
   // When the tab's URL differs from the URL this conversation last ran on,
   // flag the change so the model re-perceives instead of trusting stale reads.
   const pageUrl = (typeof overview.url === 'string' && overview.url) || tabUrl;
-  const pageChanged = Boolean(msg.previousPageUrl && pageUrl && msg.previousPageUrl !== pageUrl);
+  const pageChanged = Boolean(
+    msg.previousPageUrl && pageUrl && msg.previousPageUrl !== pageUrl,
+  );
   const pageContext = [
     ...(pageChanged
       ? [
@@ -519,7 +607,9 @@ async function handleSend(
           });
         }
       } else if (part.type === 'error') {
-        throw part.error instanceof Error ? part.error : new Error(String(part.error));
+        throw part.error instanceof Error
+          ? part.error
+          : new Error(String(part.error));
       }
       // Tool calls run inside each tool's execute (surfaced via runWithCard);
       // the stream's tool-call/tool-result parts need no handling here.
@@ -530,7 +620,8 @@ async function handleSend(
     const steps = await result.steps;
     const lastStep = steps[steps.length - 1];
     cappedByStepLimit =
-      steps.length >= MAX_AGENT_STEPS && lastStep?.finishReason === 'tool-calls';
+      steps.length >= MAX_AGENT_STEPS &&
+      lastStep?.finishReason === 'tool-calls';
   } catch (err) {
     if (signal.aborted) {
       emit({ type: 'part-add', part: { type: 'text', text: 'Stopped.' } });
@@ -556,7 +647,10 @@ async function handleSend(
   } else if (!full.trim() && !sawImageAsset) {
     emit({
       type: 'part-add',
-      part: { type: 'text', text: '(The assistant finished without producing a final answer.)' },
+      part: {
+        type: 'text',
+        text: '(The assistant finished without producing a final answer.)',
+      },
     });
   }
   emit({ type: 'run-end' });
@@ -584,7 +678,9 @@ chrome.runtime.onMessage.addListener(
     if (!msg || msg.type !== 'hibro:explain') return;
     void handleExplain(msg)
       .then((text) => sendResponse({ ok: true, text }))
-      .catch((err: unknown) => sendResponse({ ok: false, error: friendlyError(err) }));
+      .catch((err: unknown) =>
+        sendResponse({ ok: false, error: friendlyError(err) }),
+      );
     return true; // keep the channel open for the async response
   },
 );

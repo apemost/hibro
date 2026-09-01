@@ -42,7 +42,7 @@ export async function readConversationState(): Promise<{
 }> {
   const all = (await chrome.storage.local.get([
     CONVERSATIONS_KEY,
-    ACTIVE_CONVERSATION_KEY
+    ACTIVE_CONVERSATION_KEY,
   ])) as Record<string, unknown>;
   const raw = all[CONVERSATIONS_KEY];
   const items = Array.isArray(raw)
@@ -57,14 +57,14 @@ export async function readConversationState(): Promise<{
 
 /** Replaces the stored conversation list. */
 export async function writeConversations(
-  items: StoredConversation[]
+  items: StoredConversation[],
 ): Promise<void> {
   await chrome.storage.local.set({ [CONVERSATIONS_KEY]: items });
 }
 
 /** Stores the active conversation id, or clears it for an empty state. */
 export async function writeActiveConversation(
-  id: string | null
+  id: string | null,
 ): Promise<void> {
   if (id === null) {
     await chrome.storage.local.remove(ACTIVE_CONVERSATION_KEY);
@@ -105,14 +105,14 @@ export function summarize(items: StoredConversation[]): ConversationSummary[] {
 export function renameConversationTitle(
   items: StoredConversation[],
   id: string,
-  rawTitle: string
+  rawTitle: string,
 ): StoredConversation[] {
   const title = rawTitle.trim();
   if (!title) return items;
   const target = items.find((conversation) => conversation.id === id);
   if (!target || target.title === title) return items;
   return items.map((conversation) =>
-    conversation.id === id ? { ...conversation, title } : conversation
+    conversation.id === id ? { ...conversation, title } : conversation,
   );
 }
 
@@ -139,12 +139,12 @@ export function deriveInputHistory(items: StoredConversation[]): string[] {
 /** Inserts or updates a conversation and keeps only the newest entries. */
 export function upsertConversation(
   items: StoredConversation[],
-  conv: StoredConversation
+  conv: StoredConversation,
 ): StoredConversation[] {
   const existing = items.find((c) => c.id === conv.id);
   const merged: StoredConversation = {
     ...conv,
-    createdAt: existing ? existing.createdAt : conv.createdAt
+    createdAt: existing ? existing.createdAt : conv.createdAt,
   };
   const without = items.filter((c) => c.id !== conv.id);
   return [merged, ...without]

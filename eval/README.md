@@ -32,21 +32,21 @@ Then run `pnpm eval`. You can also export the same variables in the shell instea
 
 Configuration:
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `HIBRO_EVAL_PROVIDER` | No | `anthropic`, `openai`, or `openai-compatible`. The default is `openai-compatible`. |
-| `HIBRO_EVAL_API_KEY` | Yes | API key for a real evaluation. |
-| `HIBRO_EVAL_MODEL` | No | Model name understood by the selected provider. |
+| Variable              | Required    | Description                                                                             |
+| --------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `HIBRO_EVAL_PROVIDER` | No          | `anthropic`, `openai`, or `openai-compatible`. The default is `openai-compatible`.      |
+| `HIBRO_EVAL_API_KEY`  | Yes         | API key for a real evaluation.                                                          |
+| `HIBRO_EVAL_MODEL`    | No          | Model name understood by the selected provider.                                         |
 | `HIBRO_EVAL_BASE_URL` | Conditional | Required for `openai-compatible`; optional custom endpoint for `openai` or `anthropic`. |
 
 ## Evaluation cases
 
-| Case | Expected result |
-| --- | --- |
+| Case       | Expected result                                       |
+| ---------- | ----------------------------------------------------- |
 | `navigate` | Opens the abstract page for arXiv paper `1706.03762`. |
-| `title` | Returns the paper title "Attention Is All You Need." |
-| `subjects` | Finds `cs.CL` or "Computation and Language." |
-| `scroll` | Moves the live page down. |
+| `title`    | Returns the paper title "Attention Is All You Need."  |
+| `subjects` | Finds `cs.CL` or "Computation and Language."          |
+| `scroll`   | Moves the live page down.                             |
 
 The script prints a pass or fail result for each case.
 

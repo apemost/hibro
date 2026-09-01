@@ -4,6 +4,6 @@
 // while the block is mid-stream; the only trustworthy completeness signal is
 // the run state, which the panel owns. Provided per message in App.tsx's
 // MessageParts; false for any message that is not actively streaming.
-import { createContext } from "react";
+import { createContext } from 'react';
 
 export const PartStreamingContext = createContext(false);

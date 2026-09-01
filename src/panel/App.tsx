@@ -1,16 +1,20 @@
 import {
   Conversation,
   ConversationContent,
-  ConversationEmptyState
-} from "@/components/ai-elements/conversation";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Tool } from "@/components/ai-elements/tool";
-import { ConversationDrawer } from "./ConversationDrawer";
-import { MessageActions } from "./MessageActions";
-import { ProviderPicker } from "./ProviderPicker";
-import { useProviders } from "./useProviders";
-import { cn } from "@/lib/utils";
-import type { HibroPart } from "@/shared/protocol";
+  ConversationEmptyState,
+} from '@/components/ai-elements/conversation';
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from '@/components/ai-elements/message';
+import { Tool } from '@/components/ai-elements/tool';
+import { ConversationDrawer } from './ConversationDrawer';
+import { MessageActions } from './MessageActions';
+import { ProviderPicker } from './ProviderPicker';
+import { useProviders } from './useProviders';
+import { cn } from '@/lib/utils';
+import type { HibroPart } from '@/shared/protocol';
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -18,15 +22,15 @@ import {
   useId,
   useLayoutEffect,
   useRef,
-  useState
-} from "react";
-import { useStickToBottomContext } from "use-stick-to-bottom";
-import { useHibroChat } from "./useHibroChat";
-import { useInputHistory } from "./useInputHistory";
-import { deriveTitle } from "@/shared/conversations";
-import { PartStreamingContext } from "./partStreaming";
-import { PanelI18nProvider, usePanelI18n } from "./i18n";
-import { ImageAsset } from "./ImageAsset";
+  useState,
+} from 'react';
+import { useStickToBottomContext } from 'use-stick-to-bottom';
+import { useHibroChat } from './useHibroChat';
+import { useInputHistory } from './useInputHistory';
+import { deriveTitle } from '@/shared/conversations';
+import { PartStreamingContext } from './partStreaming';
+import { PanelI18nProvider, usePanelI18n } from './i18n';
+import { ImageAsset } from './ImageAsset';
 
 const MAX_INPUT_HEIGHT = 400;
 const INPUT_RESIZE_STEP = 24;
@@ -40,15 +44,21 @@ type InputResizeDrag = {
 
 // Renders answer text and tool cards. Reasoning stays in the temporary run
 // readout, while the streaming flag helps fenced blocks avoid early previews.
-function MessageParts({ parts, streaming }: { parts: HibroPart[]; streaming: boolean }) {
+function MessageParts({
+  parts,
+  streaming,
+}: {
+  parts: HibroPart[];
+  streaming: boolean;
+}) {
   return (
     <PartStreamingContext.Provider value={streaming}>
       {parts.map((p, i) => {
-        if (p.type === "text") {
+        if (p.type === 'text') {
           return <MessageResponse key={i}>{p.text}</MessageResponse>;
         }
-        if (p.type === "reasoning") return null;
-        if (p.type === "image-asset") return <ImageAsset key={i} part={p} />;
+        if (p.type === 'reasoning') return null;
+        if (p.type === 'image-asset') return <ImageAsset key={i} part={p} />;
         return <Tool key={i} part={p} />;
       })}
     </PartStreamingContext.Provider>
@@ -57,10 +67,16 @@ function MessageParts({ parts, streaming }: { parts: HibroPart[]; streaming: boo
 
 // Keep the newest message visible when the run readout changes footer height.
 // Do not move the log after the user has scrolled away from the bottom.
-function ReadoutScrollCompensator({ rows, titled }: { rows: number; titled: boolean }) {
+function ReadoutScrollCompensator({
+  rows,
+  titled,
+}: {
+  rows: number;
+  titled: boolean;
+}) {
   const { scrollToBottom, isAtBottom } = useStickToBottomContext();
   useLayoutEffect(() => {
-    if (isAtBottom) void scrollToBottom("instant");
+    if (isAtBottom) void scrollToBottom('instant');
     // Recheck bottom-following state whenever the readout height changes.
   }, [rows, titled]);
   return null;
@@ -78,7 +94,8 @@ function CollapsibleUserMessage({ text }: { text: string }) {
     const content = contentRef.current;
     if (!content) return;
     const measure = () => {
-      const nextOverflowing = content.scrollHeight > COLLAPSED_USER_MESSAGE_HEIGHT;
+      const nextOverflowing =
+        content.scrollHeight > COLLAPSED_USER_MESSAGE_HEIGHT;
       setOverflowing(nextOverflowing);
       if (!nextOverflowing) setExpanded(false);
     };
@@ -96,7 +113,7 @@ function CollapsibleUserMessage({ text }: { text: string }) {
         className="msg-text user-message-content"
         style={
           overflowing && !expanded
-            ? { maxHeight: COLLAPSED_USER_MESSAGE_HEIGHT, overflow: "hidden" }
+            ? { maxHeight: COLLAPSED_USER_MESSAGE_HEIGHT, overflow: 'hidden' }
             : undefined
         }
       >
@@ -130,43 +147,51 @@ function PanelApp() {
     newChat,
     switchTo,
     renameConversation,
-    deleteConversation
+    deleteConversation,
   } = useHibroChat();
   const {
     profiles,
     activeId: activeProviderId,
     storageError: providerStorageError,
-    setActive
+    setActive,
   } = useProviders();
-  const [text, setText] = useState("");
+  const [text, setText] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputMinHeight = useRef<number | null>(null);
   const inputResizeDrag = useRef<InputResizeDrag | null>(null);
   const [inputHeight, setInputHeight] = useState<number | null>(null);
   // Recall sent messages without losing the current draft.
-  const { record: recordInput, handleKey: handleHistoryKey } = useInputHistory({ text, setText });
+  const { record: recordInput, handleKey: handleHistoryKey } = useInputHistory({
+    text,
+    setText,
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Chrome already labels the side panel, so the app bar shows the thread title.
-  const storedTitle = summaries.find((conversation) => conversation.id === activeId)?.title;
-  const activeTitle = storedTitle ?? (messages.length === 0 ? ui.newChat : deriveTitle(messages));
-  const busy = status === "streaming";
-  const selectedProvider = activeProviderId ?? profiles[0]?.id ?? "";
+  const storedTitle = summaries.find(
+    (conversation) => conversation.id === activeId,
+  )?.title;
+  const activeTitle =
+    storedTitle ?? (messages.length === 0 ? ui.newChat : deriveTitle(messages));
+  const busy = status === 'streaming';
+  const selectedProvider = activeProviderId ?? profiles[0]?.id ?? '';
 
   // Show the latest reasoning lines while they stream, otherwise show the
   // worker status. Hide the readout as soon as answer text starts.
   const lastMessage = messages[messages.length - 1];
   const tailParts =
-    busy && lastMessage?.role === "assistant" && !lastMessage.error ? lastMessage.parts : [];
+    busy && lastMessage?.role === 'assistant' && !lastMessage.error
+      ? lastMessage.parts
+      : [];
   const lastPart = tailParts[tailParts.length - 1];
   const reasoningLines =
-    lastPart?.type === "reasoning"
+    lastPart?.type === 'reasoning'
       ? lastPart.text
-          .split("\n")
+          .split('\n')
           .map((l) => l.trim())
           .filter(Boolean)
           .slice(-3)
       : [];
-  const sawReasoning = tailParts.some((p) => p.type === "reasoning");
+  const sawReasoning = tailParts.some((p) => p.type === 'reasoning');
   const readoutLines =
     reasoningLines.length > 0
       ? reasoningLines
@@ -183,26 +208,31 @@ function PanelApp() {
   }, []);
 
   const resizeInput = (nextHeight: number) => {
-    const measuredHeight = inputRef.current?.getBoundingClientRect().height ?? nextHeight;
+    const measuredHeight =
+      inputRef.current?.getBoundingClientRect().height ?? nextHeight;
     const minHeight = inputMinHeight.current ?? measuredHeight;
     inputMinHeight.current = minHeight;
     setInputHeight(Math.min(MAX_INPUT_HEIGHT, Math.max(minHeight, nextHeight)));
   };
 
-  const onInputResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onInputResizePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
     if (event.button !== 0 || !inputRef.current) return;
     const startHeight = inputRef.current.getBoundingClientRect().height;
     if (inputMinHeight.current === null) inputMinHeight.current = startHeight;
     inputResizeDrag.current = {
       pointerId: event.pointerId,
       startY: event.clientY,
-      startHeight
+      startHeight,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   };
 
-  const onInputResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onInputResizePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
     const drag = inputResizeDrag.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     resizeInput(drag.startHeight + drag.startY - event.clientY);
@@ -223,16 +253,16 @@ function PanelApp() {
     const minHeight = inputMinHeight.current ?? currentHeight;
     let nextHeight: number;
     switch (event.key) {
-      case "ArrowUp":
+      case 'ArrowUp':
         nextHeight = currentHeight + INPUT_RESIZE_STEP;
         break;
-      case "ArrowDown":
+      case 'ArrowDown':
         nextHeight = currentHeight - INPUT_RESIZE_STEP;
         break;
-      case "Home":
+      case 'Home':
         nextHeight = minHeight;
         break;
-      case "End":
+      case 'End':
         nextHeight = MAX_INPUT_HEIGHT;
         break;
       default:
@@ -246,7 +276,7 @@ function PanelApp() {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || busy) return;
-    setText("");
+    setText('');
     recordInput(trimmed);
     // The composer keeps focus so a follow-up can be typed while the answer
     // streams. No double-caret conflict: the streaming indicator is the
@@ -301,7 +331,10 @@ function PanelApp() {
       </header>
 
       <Conversation id="log">
-        <ReadoutScrollCompensator rows={readoutLines.length} titled={reasoningLines.length > 0} />
+        <ReadoutScrollCompensator
+          rows={readoutLines.length}
+          titled={reasoningLines.length > 0}
+        />
         <ConversationContent>
           {messages.length === 0 ? (
             <ConversationEmptyState
@@ -311,7 +344,10 @@ function PanelApp() {
           ) : (
             messages.map((m, i) => {
               const streaming =
-                busy && i === messages.length - 1 && m.role === "assistant" && !m.error;
+                busy &&
+                i === messages.length - 1 &&
+                m.role === 'assistant' &&
+                !m.error;
               // The dots fill only dead air: the pre-first-token wait,
               // reasoning, and the thinking gaps between tool steps. They hide
               // while answer text streams (the text itself is the progress
@@ -320,35 +356,38 @@ function PanelApp() {
               // tool part's input-available → output-available/output-error
               // lifecycle, so the dots never duplicate it.
               const anyToolRunning = m.parts.some(
-                (p) => p.type === "tool-invocation" && p.state === "input-available"
+                (p) =>
+                  p.type === 'tool-invocation' && p.state === 'input-available',
               );
-              const tailIsText = m.parts[m.parts.length - 1]?.type === "text";
+              const tailIsText = m.parts[m.parts.length - 1]?.type === 'text';
               const showDots = streaming && !tailIsText && !anyToolRunning;
               const userText = m.parts
-                .filter((p) => p.type === "text")
+                .filter((p) => p.type === 'text')
                 .map((p) => p.text)
-                .join("");
+                .join('');
               return (
                 <Message
                   key={m.id}
                   from={m.role}
                   className={cn(
-                    "msg",
+                    'msg',
                     m.role,
-                    m.error && "error",
-                    streaming && "streaming"
+                    m.error && 'error',
+                    streaming && 'streaming',
                   )}
                 >
-                  <MessageContent className={m.error ? "error-bubble" : undefined}>
-                    {m.role === "user" ? (
+                  <MessageContent
+                    className={m.error ? 'error-bubble' : undefined}
+                  >
+                    {m.role === 'user' ? (
                       <CollapsibleUserMessage text={userText} />
                     ) : (
                       <div className="msg-text">
                         <MessageParts parts={m.parts} streaming={streaming} />
-                        {m.errorAction === "open-provider-settings" && (
+                        {m.errorAction === 'open-provider-settings' && (
                           <a
                             className="error-action"
-                            href={chrome.runtime.getURL("src/options.html")}
+                            href={chrome.runtime.getURL('src/options.html')}
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -375,7 +414,9 @@ function PanelApp() {
       <footer>
         {readoutLines.length > 0 && (
           <div id="run-readout" aria-live="polite">
-            {reasoningLines.length > 0 && <div className="run-readout-title">{ui.thinking}</div>}
+            {reasoningLines.length > 0 && (
+              <div className="run-readout-title">{ui.thinking}</div>
+            )}
             {readoutLines.map((line, i) => (
               <div className="run-readout-line" key={i}>
                 {line}
@@ -393,10 +434,14 @@ function PanelApp() {
               aria-orientation="horizontal"
               aria-controls="input"
               aria-valuemin={
-                inputMinHeight.current === null ? undefined : Math.round(inputMinHeight.current)
+                inputMinHeight.current === null
+                  ? undefined
+                  : Math.round(inputMinHeight.current)
               }
               aria-valuemax={MAX_INPUT_HEIGHT}
-              aria-valuenow={inputHeight === null ? undefined : Math.round(inputHeight)}
+              aria-valuenow={
+                inputHeight === null ? undefined : Math.round(inputHeight)
+              }
               tabIndex={0}
               onPointerDown={onInputResizePointerDown}
               onPointerMove={onInputResizePointerMove}
@@ -418,7 +463,7 @@ function PanelApp() {
                 if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                 // Leave unhandled arrow keys to the textarea caret.
                 if (handleHistoryKey(e)) return;
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   e.currentTarget.form?.requestSubmit();
                 }
@@ -475,8 +520,16 @@ function PanelApp() {
               aria-label={ui.send}
               hidden={busy}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M22 2 11 13" />
+                <path d="M22 2 15 22l-4-9-9-4z" />
               </svg>
             </button>
           </div>

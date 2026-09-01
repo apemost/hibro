@@ -35,27 +35,34 @@ const TASKS = [
     id: 'navigate',
     url: 'https://arxiv.org/',
     prompt: 'Go to the abstract page for arXiv paper 1706.03762.',
-    check: (o) => result(o.url.includes('/abs/1706.03762'), `url=${o.url}`)
+    check: (o) => result(o.url.includes('/abs/1706.03762'), `url=${o.url}`),
   },
   {
     id: 'title',
     url: ABS,
     prompt: 'What is the exact title of this paper? Reply with only the title.',
-    check: (o) => result(/attention is all you need/i.test(o.answer), `answer="${o.answer.slice(0, 120)}"`)
+    check: (o) =>
+      result(
+        /attention is all you need/i.test(o.answer),
+        `answer="${o.answer.slice(0, 120)}"`,
+      ),
   },
   {
     id: 'subjects',
     url: ABS,
     prompt: 'List the arXiv subject categories this paper is classified under.',
     check: (o) =>
-      result(/cs\.CL|computation and language/i.test(o.answer), `answer="${o.answer.slice(0, 120)}"`)
+      result(
+        /cs\.CL|computation and language/i.test(o.answer),
+        `answer="${o.answer.slice(0, 120)}"`,
+      ),
   },
   {
     id: 'scroll',
     url: ABS,
     prompt: 'Scroll down the page.',
-    check: (o) => result(o.scrollY > 0, `scrollY=${o.scrollY}`)
-  }
+    check: (o) => result(o.scrollY > 0, `scrollY=${o.scrollY}`),
+  },
 ];
 
 const result = (pass, detail) => ({ pass, detail });
@@ -77,13 +84,13 @@ function realProfileFromEnv() {
           ? ' HIBRO_EVAL_BASE_URL is also required for openai-compatible providers.'
           : '') +
         '\nHIBRO_EVAL_PROVIDER and HIBRO_EVAL_MODEL are optional.\n' +
-        'For a keyless harness check, run: pnpm eval -- --self-test'
+        'For a keyless harness check, run: pnpm eval -- --self-test',
     );
     process.exit(2);
   }
   if (provider === 'openai-compatible' && !baseUrl) {
     console.error(
-      'HIBRO_EVAL_BASE_URL is required for openai-compatible providers. Add it to .env or export it before running pnpm eval.'
+      'HIBRO_EVAL_BASE_URL is required for openai-compatible providers. Add it to .env or export it before running pnpm eval.',
     );
     process.exit(2);
   }
@@ -91,13 +98,16 @@ function realProfileFromEnv() {
     provider,
     baseUrl,
     apiKey,
-    model: process.env.HIBRO_EVAL_MODEL || defaultModel(provider)
+    model: process.env.HIBRO_EVAL_MODEL || defaultModel(provider),
   };
 }
 
 // --- Extension loading (mirror of e2e/fixtures.ts) ---
 function extensionIdFromKey(key) {
-  const hash = crypto.createHash('sha256').update(Buffer.from(key, 'base64')).digest();
+  const hash = crypto
+    .createHash('sha256')
+    .update(Buffer.from(key, 'base64'))
+    .digest();
   let id = '';
   for (let i = 0; i < 16; i++) {
     id += String.fromCharCode('a'.charCodeAt(0) + (hash[i] >> 4));
@@ -108,15 +118,19 @@ function extensionIdFromKey(key) {
 
 async function launchExtension() {
   if (!fs.existsSync(path.join(DIST, 'manifest.json'))) {
-    throw new Error(`Eval build not found at ${DIST}. Run "pnpm eval" to build it.`);
+    throw new Error(
+      `Eval build not found at ${DIST}. Run "pnpm eval" to build it.`,
+    );
   }
-  const manifest = JSON.parse(fs.readFileSync(path.join(DIST, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(DIST, 'manifest.json'), 'utf8'),
+  );
   const extId = extensionIdFromKey(manifest.key);
   const ctx = await chromium.launchPersistentContext('', {
     channel: 'chromium',
     ignoreDefaultArgs: ['--disable-extensions'],
     args: [`--disable-extensions-except=${DIST}`, `--load-extension=${DIST}`],
-    headless: false
+    headless: false,
   });
   const probe = await ctx.newPage();
   for (let i = 0; i < 50; i++) {
@@ -138,7 +152,10 @@ async function clearConversations(ctx, extId) {
   const p = await ctx.newPage();
   await p.goto(`chrome-extension://${extId}/src/options.html`);
   await p.evaluate(async () => {
-    await chrome.storage.local.remove(['hibroConversations', 'activeConversationId']);
+    await chrome.storage.local.remove([
+      'hibroConversations',
+      'activeConversationId',
+    ]);
   });
   await p.close();
 }
@@ -146,8 +163,12 @@ async function clearConversations(ctx, extId) {
 // Drive one task through the real panel and capture the outcome.
 async function runTask(ctx, extId, task) {
   const page = await ctx.newPage();
-  await page.goto(task.url, { waitUntil: 'commit', timeout: 60_000 }).catch(() => {});
-  await page.waitForLoadState('domcontentloaded', { timeout: 60_000 }).catch(() => {});
+  await page
+    .goto(task.url, { waitUntil: 'commit', timeout: 60_000 })
+    .catch(() => {});
+  await page
+    .waitForLoadState('domcontentloaded', { timeout: 60_000 })
+    .catch(() => {});
   await page.bringToFront();
 
   await clearConversations(ctx, extId);
@@ -158,10 +179,21 @@ async function runTask(ctx, extId, task) {
   await page.bringToFront();
   await panel.fill('#input', task.prompt);
   await panel.click('#sendBtn');
-  await panel.waitForSelector('#stopBtn', { state: 'visible', timeout: 15_000 }).catch(() => {});
-  await panel.waitForSelector('#sendBtn', { state: 'visible', timeout: RUN_TIMEOUT_MS });
+  await panel
+    .waitForSelector('#stopBtn', { state: 'visible', timeout: 15_000 })
+    .catch(() => {});
+  await panel.waitForSelector('#sendBtn', {
+    state: 'visible',
+    timeout: RUN_TIMEOUT_MS,
+  });
 
-  const answer = (await panel.locator('#log .msg.assistant').last().innerText().catch(() => '')).trim();
+  const answer = (
+    await panel
+      .locator('#log .msg.assistant')
+      .last()
+      .innerText()
+      .catch(() => '')
+  ).trim();
   const url = page.url();
   const scrollY = await page.evaluate(() => window.scrollY).catch(() => 0);
   await panel.close();
@@ -185,25 +217,50 @@ function startSelfTestMock(targetUrl) {
       req.on('data', (c) => (body += c));
       req.on('end', () => {
         const parsed = JSON.parse(body);
-        const toolResults = (parsed.messages ?? []).filter((m) => m.role === 'tool').length;
+        const toolResults = (parsed.messages ?? []).filter(
+          (m) => m.role === 'tool',
+        ).length;
         const hasTools = Array.isArray(parsed.tools) && parsed.tools.length > 0;
         const send = (obj) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(obj));
         };
         const sse = (chunks) => {
-          res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+          res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          });
           for (const c of chunks) res.write(`data: ${JSON.stringify(c)}\n\n`);
           res.write('data: [DONE]\n\n');
           res.end();
         };
         if (!hasTools) return send(completion('ok'));
         if (toolResults === 0) {
-          const call = { id: 'call_0', type: 'function', function: { name: 'navigate', arguments: JSON.stringify({ url: targetUrl }) } };
+          const call = {
+            id: 'call_0',
+            type: 'function',
+            function: {
+              name: 'navigate',
+              arguments: JSON.stringify({ url: targetUrl }),
+            },
+          };
           if (parsed.stream) {
             return sse([
-              { choices: [{ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, ...call }] } }] },
-              { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }
+              {
+                choices: [
+                  {
+                    index: 0,
+                    delta: {
+                      role: 'assistant',
+                      content: null,
+                      tool_calls: [{ index: 0, ...call }],
+                    },
+                  },
+                ],
+              },
+              {
+                choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+              },
             ]);
           }
           return send(toolCompletion('call_0', 'navigate', { url: targetUrl }));
@@ -211,7 +268,7 @@ function startSelfTestMock(targetUrl) {
         if (parsed.stream) {
           return sse([
             { choices: [{ index: 0, delta: { content: 'Task finished.' } }] },
-            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
           ]);
         }
         return send(completion('Task finished.'));
@@ -219,7 +276,10 @@ function startSelfTestMock(targetUrl) {
     });
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
-      resolve({ port, close: () => new Promise((r) => server.close(() => r())) });
+      resolve({
+        port,
+        close: () => new Promise((r) => server.close(() => r())),
+      });
     });
   });
 }
@@ -230,8 +290,14 @@ function completion(content) {
     object: 'chat.completion',
     created: 0,
     model: 'eval',
-    choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+    choices: [
+      {
+        index: 0,
+        message: { role: 'assistant', content },
+        finish_reason: 'stop',
+      },
+    ],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   };
 }
 function toolCompletion(id, name, args) {
@@ -246,12 +312,18 @@ function toolCompletion(id, name, args) {
         message: {
           role: 'assistant',
           content: null,
-          tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }]
+          tool_calls: [
+            {
+              id,
+              type: 'function',
+              function: { name, arguments: JSON.stringify(args) },
+            },
+          ],
         },
-        finish_reason: 'tool_calls'
-      }
+        finish_reason: 'tool_calls',
+      },
     ],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   };
 }
 
@@ -281,10 +353,12 @@ async function main() {
       provider: 'openai-compatible',
       baseUrl: `http://127.0.0.1:${mock.port}`,
       apiKey: 'eval-mock',
-      model: 'eval'
+      model: 'eval',
     };
     tasks = [TASKS[0]]; // navigate, performed for real by the scripted "model"
-    console.log(`[self-test] scripted mock on :${mock.port}; real navigate → ${ABS}`);
+    console.log(
+      `[self-test] scripted mock on :${mock.port}; real navigate → ${ABS}`,
+    );
   } else {
     profile = realProfileFromEnv();
     tasks = TASKS;
@@ -301,7 +375,13 @@ async function main() {
         const r = t.check(o);
         results.push({ ...o, ...r });
       } catch (e) {
-        results.push({ id: t.id, prompt: t.prompt, pass: false, detail: 'threw', error: e.message });
+        results.push({
+          id: t.id,
+          prompt: t.prompt,
+          pass: false,
+          detail: 'threw',
+          error: e.message,
+        });
       }
     }
   } finally {

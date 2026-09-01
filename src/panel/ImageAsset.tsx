@@ -2,12 +2,12 @@ import {
   MAX_IMAGE_DIMENSION,
   MAX_IMAGE_PIXELS,
   decodeImageBase64,
-} from "@/shared/imageAssets";
-import type { HibroPart } from "@/shared/protocol";
-import { useEffect, useState } from "react";
-import { usePanelI18n } from "./i18n";
+} from '@/shared/imageAssets';
+import type { HibroPart } from '@/shared/protocol';
+import { useEffect, useState } from 'react';
+import { usePanelI18n } from './i18n';
 
-type ImageAssetPart = Extract<HibroPart, { type: "image-asset" }>;
+type ImageAssetPart = Extract<HibroPart, { type: 'image-asset' }>;
 
 /** Rejects undecodable or exceptionally large image dimensions before display. */
 export async function validateImageBlob(blob: Blob): Promise<boolean> {
@@ -38,7 +38,11 @@ export function ImageAsset({ part }: { part: ImageAssetPart }) {
     let localUrl: string | null = null;
     setObjectUrl(null);
     setInvalid(false);
-    const bytes = decodeImageBase64(part.base64, part.mediaType, part.byteLength);
+    const bytes = decodeImageBase64(
+      part.base64,
+      part.mediaType,
+      part.byteLength,
+    );
     if (!bytes) {
       setInvalid(true);
       return () => {
@@ -64,7 +68,11 @@ export function ImageAsset({ part }: { part: ImageAssetPart }) {
 
   if (invalid) {
     return (
-      <figure className="image-asset-card" aria-label={label} data-hibro-image-state="blocked">
+      <figure
+        className="image-asset-card"
+        aria-label={label}
+        data-hibro-image-state="blocked"
+      >
         <div role="alert" className="image-asset-error">
           {messages.inlineImageInvalid}
         </div>
@@ -72,7 +80,11 @@ export function ImageAsset({ part }: { part: ImageAssetPart }) {
     );
   }
   return (
-    <figure className="image-asset-card" aria-label={label} data-hibro-image-state="local">
+    <figure
+      className="image-asset-card"
+      aria-label={label}
+      data-hibro-image-state="local"
+    >
       {objectUrl ? (
         <img className="message-image" src={objectUrl} alt={label} />
       ) : (

@@ -12,6 +12,7 @@ match:
   - https://example.com/*
   - https://*.example.com/*
 ---
+
 The search box is `input#q`. Submit with `button#go`.
 ```
 
