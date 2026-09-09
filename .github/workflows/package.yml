@@ -47,7 +47,7 @@ jobs:
 
       - name: Package extension
         if: github.event_name == 'push'
-        run: pnpm package:extension -- "$GITHUB_REF_NAME" dist "$RUNNER_TEMP"
+        run: pnpm package -- "$GITHUB_REF_NAME" dist "$RUNNER_TEMP"
 
       - name: Upload extension package
         if: github.event_name == 'push'

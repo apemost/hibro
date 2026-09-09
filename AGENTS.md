@@ -27,7 +27,7 @@ A browser extension (Chrome / Edge, Manifest V3) for AI-assisted reading and web
 pnpm install   # install dependencies
 pnpm build     # production build → dist/ (git-ignored)
 pnpm release [patch|minor|major|x.y.z] # stable Chrome/Edge version: bump, format, commit, tag, and push
-pnpm package:extension -- <tag> [source] [output] # package a built extension as a tag-named ZIP
+pnpm package -- <tag> [source] [output] # package a built extension as a tag-named ZIP
 pnpm dev       # dev mode with HMR → load the same dist/
 pnpm docs:dev  # local VitePress documentation server
 pnpm docs:build # production documentation build → docs/.vitepress/dist/

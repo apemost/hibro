@@ -48,7 +48,7 @@ test('creates a tag-named ZIP with extension files at the archive root', (t) => 
 
   const packageRun = spawnSync(
     packageManager,
-    ['package:extension', '--', 'v1.2.3', sourceDirectory, outputDirectory],
+    ['package', '--', 'v1.2.3', sourceDirectory, outputDirectory],
     { cwd: repositoryRoot, encoding: 'utf8' },
   );
   const packageOutput = [packageRun.stdout, packageRun.stderr]

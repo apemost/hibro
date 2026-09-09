@@ -8,7 +8,7 @@
     "release": "release-it",
     "dev": "vite",
     "build": "vite build",
-    "package:extension": "node scripts/package-extension.mjs",
+    "package": "node scripts/package-extension.mjs",
     "docs:dev": "pnpm --dir docs dev",
     "docs:build": "pnpm --dir docs build",
     "docs:preview": "pnpm --dir docs preview",
