@@ -454,7 +454,7 @@ export async function startMock(): Promise<MockServer> {
             : /remote image chart/i.test(lastUser)
               ? [
                   'Here is the chart:\n\n```chart\n',
-                  `{"series":[{"type":"scatter","symbol":"image://${trackingUrl}","data":[[1,2]]}]}\n`,
+                  `{"type":"scatter","datasets":[{"label":"Remote","data":[[1,2]],"image":"${trackingUrl}"}]}\n`,
                   '```\n',
                 ]
               : /diagram/i.test(lastUser)
@@ -469,29 +469,37 @@ export async function startMock(): Promise<MockServer> {
                       '{not valid json}\n',
                       '```\n',
                     ]
-                  : /chart/i.test(lastUser)
+                  : /chart formats/i.test(lastUser)
                     ? [
-                        'Here is the chart:\n\n```chart\n',
-                        '{"xAxis":{"type":"category","data":["Q1","Q2","Q3"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[3,5,4]}]}\n',
-                        '```\n\nQuarterly numbers.',
+                        'Supported chart formats:\n\n',
+                        '```chart\n{"type":"bar","labels":["Q1","Q2"],"datasets":[{"label":"Bar","data":[3,5]}]}\n```\n\n',
+                        '```chart\n{"type":"line","labels":["Q1","Q2"],"datasets":[{"label":"Line","data":[3,5]}]}\n```\n\n',
+                        '```chart\n{"type":"pie","labels":["Yes","No"],"datasets":[{"label":"Pie","data":[7,3]}]}\n```\n\n',
+                        '```chart\n{"type":"scatter","datasets":[{"label":"Scatter","data":[[1,2],[2,4]]}]}\n```\n',
                       ]
-                    : /html/i.test(lastUser)
+                    : /chart/i.test(lastUser)
                       ? [
-                          'Here is the snippet:\n\n```html\n',
-                          '<div style="padding:16px;border:2px solid #1d4ed8;border-radius:8px">\n  <h2 style="color:#1d4ed8;margin:0">Preview me</h2>\n</div>\n',
-                          '```\n',
+                          'Here is the chart:\n\n```chart\n',
+                          '{"type":"bar","labels":["Q1","Q2","Q3"],"datasets":[{"label":"Quarterly numbers","data":[3,5,4]}],"title":"Quarterly numbers"}\n',
+                          '```\n\nQuarterly numbers.',
                         ]
-                      : /long code/i.test(lastUser)
-                        ? // 40 lines: well past the panel's 25-line code-block cap.
-                          [
-                            'Here is the code:\n\n```\n',
-                            Array.from(
-                              { length: 40 },
-                              (_, i) => `line ${i + 1}`,
-                            ).join('\n'),
-                            '\n```\n',
+                      : /html/i.test(lastUser)
+                        ? [
+                            'Here is the snippet:\n\n```html\n',
+                            '<div style="padding:16px;border:2px solid #1d4ed8;border-radius:8px">\n  <h2 style="color:#1d4ed8;margin:0">Preview me</h2>\n</div>\n',
+                            '```\n',
                           ]
-                        : null;
+                        : /long code/i.test(lastUser)
+                          ? // 40 lines: well past the panel's 25-line code-block cap.
+                            [
+                              'Here is the code:\n\n```\n',
+                              Array.from(
+                                { length: 40 },
+                                (_, i) => `line ${i + 1}`,
+                              ).join('\n'),
+                              '\n```\n',
+                            ]
+                          : null;
           if (chunks) {
             await streamTextChunks(res, chunks);
             return;

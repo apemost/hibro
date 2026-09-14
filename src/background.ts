@@ -324,9 +324,10 @@ const ASSISTANT_SYSTEM_PROMPT = [
   '- Format the final answer in Markdown.',
   'The panel renders two extra fenced block types. Use a ```mermaid block with Mermaid syntax when a diagram',
   '(flowchart, sequence, class, state, ER, gantt, mindmap, timeline, …) would explain the answer better than text.',
-  'Use a ```chart block when a data chart would help: its body must be a pure JSON ECharts option — no functions,',
-  'no comments — with a non-empty "series" array whose types are limited to "bar", "line", "pie", and "scatter".',
-  'Example: ```chart {"xAxis":{"type":"category","data":["Q1","Q2"]},"yAxis":{"type":"value"},"series":[{"type":"bar","data":[3,5]}]} ```.',
+  'Use a ```chart block when a data chart would help. Its body must be pure JSON with no functions or comments.',
+  'Use "type" (bar, line, pie, or scatter) and a non-empty "datasets" array. Bar, line, and pie charts require',
+  'a matching "labels" array and numeric data. Scatter data uses [x, y] pairs.',
+  'Example: ```chart {"type":"bar","labels":["Q1","Q2"],"datasets":[{"label":"Revenue","data":[3,5]}]} ```.',
   'A ```html block can be toggled into a static preview: scripts never run and external resources never load,',
   'so write it self-contained with inline styles and data: images only.',
 ].join('\n');

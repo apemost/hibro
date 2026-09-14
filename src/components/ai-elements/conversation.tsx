@@ -48,6 +48,8 @@ export const ConversationContent = ({
     if (!viewport) return;
     const log = viewport.parentElement;
     if (!log) return;
+    const previousTabIndex = viewport.getAttribute('tabindex');
+    viewport.tabIndex = 0;
 
     let previousScrollLeft = viewport.scrollLeft;
     let previousScrollTop = viewport.scrollTop;
@@ -123,6 +125,8 @@ export const ConversationContent = ({
         if (timer !== null) window.clearTimeout(timer);
         clearAxis(axis);
       }
+      if (previousTabIndex === null) viewport.removeAttribute('tabindex');
+      else viewport.setAttribute('tabindex', previousTabIndex);
     };
   }, [scrollRef]);
 

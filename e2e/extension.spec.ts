@@ -42,8 +42,9 @@ test.beforeEach(async ({ browserContext, extensionId }) => {
 
 test('extension loads with required permissions', async ({ extensionId }) => {
   expect(extensionId).toBeTruthy();
+  const distDirectory = path.resolve(dirname, '..', 'dist');
   const manifest = JSON.parse(
-    readFileSync(path.resolve(dirname, '..', 'dist', 'manifest.json'), 'utf8'),
+    readFileSync(path.join(distDirectory, 'manifest.json'), 'utf8'),
   );
   expect(manifest.permissions).toContain('debugger');
   expect(manifest.permissions).toContain('scripting');
@@ -52,6 +53,43 @@ test('extension loads with required permissions', async ({ extensionId }) => {
   expect(manifest.content_security_policy?.extension_pages).toContain(
     "img-src 'self' blob: data:",
   );
+
+  const licenseReport = readFileSync(
+    path.join(distDirectory, '.vite', 'license.md'),
+    'utf8',
+  );
+  expect(licenseReport).toMatch(/^## chart\.js - \d/m);
+});
+
+test('panel exposes keyboard-safe landmarks and drawer state', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const panel = await browserContext.newPage();
+  await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
+
+  const heading = panel.getByRole('heading', { level: 1 });
+  await expect(heading).toBeVisible();
+  await expect(panel.getByRole('main')).toBeVisible();
+  await expect(panel.getByRole('log')).toHaveAttribute(
+    'aria-labelledby',
+    'appTitle',
+  );
+  await expect(panel.locator('.conversation-scroll')).toHaveAttribute(
+    'tabindex',
+    '0',
+  );
+
+  const drawer = panel.locator('#convDrawer');
+  await expect(drawer).toHaveAttribute('aria-hidden', 'true');
+  await expect(drawer).toHaveAttribute('inert', '');
+  await panel.getByRole('button', { name: 'Conversation history' }).click();
+  await expect(drawer).toHaveAttribute('aria-hidden', 'false');
+  await expect(drawer).not.toHaveAttribute('inert', '');
+  await drawer.getByRole('button', { name: 'Close history' }).click();
+  await expect(drawer).toHaveAttribute('inert', '');
+
+  await panel.close();
 });
 
 test('local storage is available to extension pages but not content scripts', async ({
@@ -1639,14 +1677,37 @@ test('chat renders mermaid diagrams and chart blocks', async ({
     timeout: 30_000,
   });
 
-  // Chart: a pure-JSON ECharts spec renders to a canvas once the fence closes.
+  // Chart: a pure-JSON Hibro spec renders to a canvas once the fence closes.
   // Send swaps to Stop while a run is busy and onSubmit drops input in that
   // window, so wait for the swap back before sending the next message.
   await expect(panel.locator('#sendBtn')).toBeVisible();
+  const chartBundleRequest = browserContext.waitForEvent('request', {
+    predicate: (request) => /\/chartJsRuntime-[^/]+\.js$/.test(request.url()),
+  });
   await panel.fill('#input', 'show a chart of quarterly numbers');
   await panel.press('#input', 'Enter');
   const chartBlock = panel.locator('[data-streamdown="chart-block"]');
+  await expect(chartBlock).toHaveAttribute('data-chart-ready', 'true', {
+    timeout: 30_000,
+  });
   await expect(chartBlock.locator('canvas')).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(
+      () =>
+        chartBlock.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+          const context = canvas.getContext('2d');
+          if (!context || canvas.width === 0 || canvas.height === 0)
+            return false;
+          return context
+            .getImageData(0, 0, canvas.width, canvas.height)
+            .data.some((channel, index) => index % 4 === 3 && channel !== 0);
+        }),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+  expect((await chartBundleRequest).url()).toMatch(
+    /\/chartJsRuntime-[^/]+\.js$/,
+  );
 
   // A broken spec falls back to the raw code with a note instead of crashing.
   await expect(panel.locator('#sendBtn')).toBeVisible();
@@ -1661,6 +1722,102 @@ test('chat renders mermaid diagrams and chart blocks', async ({
   expect(cspErrors).toEqual([]);
   await panel.close();
   await fixture.close();
+});
+
+test('chart renderer supports current chart formats', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const { fixture, panel } = await openPanelOnFixture(
+    browserContext,
+    extensionId,
+  );
+  const pageErrors: string[] = [];
+  panel.on('pageerror', (error) => pageErrors.push(String(error)));
+
+  try {
+    await panel.emulateMedia({ colorScheme: 'dark' });
+    await panel.fill('#input', 'show chart formats');
+    await panel.press('#input', 'Enter');
+
+    const chartBlocks = panel.locator('[data-streamdown="chart-block"]');
+    await expect(chartBlocks).toHaveCount(4, { timeout: 30_000 });
+    await expect
+      .poll(
+        () =>
+          chartBlocks.evaluateAll((blocks) =>
+            blocks.every(
+              (block) => block.getAttribute('data-chart-ready') === 'true',
+            ),
+          ),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+    await expect(chartBlocks.locator('canvas')).toHaveCount(4);
+    await expect
+      .poll(
+        () =>
+          chartBlocks.locator('canvas').evaluateAll((canvases) =>
+            canvases.every((canvas) => {
+              const context = canvas.getContext('2d');
+              if (!context || canvas.width === 0 || canvas.height === 0)
+                return false;
+              return context
+                .getImageData(0, 0, canvas.width, canvas.height)
+                .data.some(
+                  (channel, index) => index % 4 === 3 && channel !== 0,
+                );
+            }),
+          ),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+
+    const firstCanvas = chartBlocks.locator('canvas').first();
+    const darkCanvas = await firstCanvas.evaluate((canvas: HTMLCanvasElement) =>
+      canvas.toDataURL(),
+    );
+    await expect
+      .poll(
+        () =>
+          chartBlocks.evaluateAll((blocks) =>
+            blocks.every(
+              (block) => block.getAttribute('data-chart-theme') === 'dark',
+            ),
+          ),
+        { timeout: 5_000 },
+      )
+      .toBe(true);
+
+    await panel.emulateMedia({ colorScheme: 'light' });
+    await expect
+      .poll(
+        () =>
+          chartBlocks.evaluateAll((blocks) =>
+            blocks.every(
+              (block) =>
+                block.getAttribute('data-chart-theme') === 'light' &&
+                block.getAttribute('data-chart-ready') === 'true',
+            ),
+          ),
+        { timeout: 5_000 },
+      )
+      .toBe(true);
+    expect(
+      await firstCanvas.evaluate((canvas: HTMLCanvasElement) =>
+        canvas.toDataURL(),
+      ),
+    ).not.toBe(darkCanvas);
+
+    await panel.setViewportSize({ width: 320, height: 720 });
+    await expect
+      .poll(() => horizontalOverflow(panel), { timeout: 5_000 })
+      .toEqual({ page: 0, scrollers: [] });
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await panel.close();
+    await fixture.close();
+  }
 });
 
 test('model Markdown cannot load remote images', async ({

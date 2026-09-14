@@ -144,6 +144,13 @@ body {
   height: 100vh;
 }
 
+.panel-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 /* Show native scrollbars only while their surface is moving. */
 .conversation-scroll::-webkit-scrollbar,
 .tool-scroll::-webkit-scrollbar {
@@ -628,17 +635,24 @@ footer {
   overflow-y: auto;
 }
 
-/* Reserve chart height while ECharts loads. */
+/* Reserve chart height while Chart.js loads and give its canvas a stable host. */
 .chart-block {
   margin: 8px 0;
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .chart-canvas {
+  position: relative;
   width: 100%;
   height: 260px;
+}
+
+.chart-canvas canvas {
+  display: block;
 }
 
 .chart-fallback {
@@ -741,6 +755,7 @@ footer {
 
 .app-title {
   flex: 1;
+  margin: 0;
   font-weight: 600;
   font-size: 14px;
   overflow: hidden;

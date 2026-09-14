@@ -307,7 +307,9 @@ function PanelApp() {
             <path d="M3 18h18" />
           </svg>
         </button>
-        <span className="app-title">{activeTitle}</span>
+        <h1 id="appTitle" className="app-title">
+          {activeTitle}
+        </h1>
         <button
           type="button"
           id="quickNewChatBtn"
@@ -330,86 +332,89 @@ function PanelApp() {
         </button>
       </header>
 
-      <Conversation id="log">
-        <ReadoutScrollCompensator
-          rows={readoutLines.length}
-          titled={reasoningLines.length > 0}
-        />
-        <ConversationContent>
-          {messages.length === 0 ? (
-            <ConversationEmptyState
-              title={ui.askTitle}
-              description={ui.askDescription}
-            />
-          ) : (
-            messages.map((m, i) => {
-              const streaming =
-                busy &&
-                i === messages.length - 1 &&
-                m.role === 'assistant' &&
-                !m.error;
-              // The dots fill only dead air: the pre-first-token wait,
-              // reasoning, and the thinking gaps between tool steps. They hide
-              // while answer text streams (the text itself is the progress
-              // signal) and while a tool call is executing. A running tool
-              // card carries its own pulsing "Running" badge, driven by the
-              // tool part's input-available → output-available/output-error
-              // lifecycle, so the dots never duplicate it.
-              const anyToolRunning = m.parts.some(
-                (p) =>
-                  p.type === 'tool-invocation' && p.state === 'input-available',
-              );
-              const tailIsText = m.parts[m.parts.length - 1]?.type === 'text';
-              const showDots = streaming && !tailIsText && !anyToolRunning;
-              const userText = m.parts
-                .filter((p) => p.type === 'text')
-                .map((p) => p.text)
-                .join('');
-              return (
-                <Message
-                  key={m.id}
-                  from={m.role}
-                  className={cn(
-                    'msg',
-                    m.role,
-                    m.error && 'error',
-                    streaming && 'streaming',
-                  )}
-                >
-                  <MessageContent
-                    className={m.error ? 'error-bubble' : undefined}
-                  >
-                    {m.role === 'user' ? (
-                      <CollapsibleUserMessage text={userText} />
-                    ) : (
-                      <div className="msg-text">
-                        <MessageParts parts={m.parts} streaming={streaming} />
-                        {m.errorAction === 'open-provider-settings' && (
-                          <a
-                            className="error-action"
-                            href={chrome.runtime.getURL('src/options.html')}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {ui.openProviderSettings}
-                          </a>
-                        )}
-                      </div>
+      <main className="panel-main">
+        <Conversation id="log" aria-labelledby="appTitle">
+          <ReadoutScrollCompensator
+            rows={readoutLines.length}
+            titled={reasoningLines.length > 0}
+          />
+          <ConversationContent>
+            {messages.length === 0 ? (
+              <ConversationEmptyState
+                title={ui.askTitle}
+                description={ui.askDescription}
+              />
+            ) : (
+              messages.map((m, i) => {
+                const streaming =
+                  busy &&
+                  i === messages.length - 1 &&
+                  m.role === 'assistant' &&
+                  !m.error;
+                // The dots fill only dead air: the pre-first-token wait,
+                // reasoning, and the thinking gaps between tool steps. They hide
+                // while answer text streams (the text itself is the progress
+                // signal) and while a tool call is executing. A running tool
+                // card carries its own pulsing "Running" badge, driven by the
+                // tool part's input-available → output-available/output-error
+                // lifecycle, so the dots never duplicate it.
+                const anyToolRunning = m.parts.some(
+                  (p) =>
+                    p.type === 'tool-invocation' &&
+                    p.state === 'input-available',
+                );
+                const tailIsText = m.parts[m.parts.length - 1]?.type === 'text';
+                const showDots = streaming && !tailIsText && !anyToolRunning;
+                const userText = m.parts
+                  .filter((p) => p.type === 'text')
+                  .map((p) => p.text)
+                  .join('');
+                return (
+                  <Message
+                    key={m.id}
+                    from={m.role}
+                    className={cn(
+                      'msg',
+                      m.role,
+                      m.error && 'error',
+                      streaming && 'streaming',
                     )}
-                  </MessageContent>
-                  {showDots && (
-                    <span className="stream-dots" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                  )}
-                </Message>
-              );
-            })
-          )}
-        </ConversationContent>
-      </Conversation>
+                  >
+                    <MessageContent
+                      className={m.error ? 'error-bubble' : undefined}
+                    >
+                      {m.role === 'user' ? (
+                        <CollapsibleUserMessage text={userText} />
+                      ) : (
+                        <div className="msg-text">
+                          <MessageParts parts={m.parts} streaming={streaming} />
+                          {m.errorAction === 'open-provider-settings' && (
+                            <a
+                              className="error-action"
+                              href={chrome.runtime.getURL('src/options.html')}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {ui.openProviderSettings}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </MessageContent>
+                    {showDots && (
+                      <span className="stream-dots" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    )}
+                  </Message>
+                );
+              })
+            )}
+          </ConversationContent>
+        </Conversation>
+      </main>
 
       <footer>
         {readoutLines.length > 0 && (

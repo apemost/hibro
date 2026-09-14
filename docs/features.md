@@ -39,6 +39,8 @@ Hibro keeps the 10 most recent conversations in extension storage and restores t
 
 The input remembers sent messages across saved conversations. Press ArrowUp from an empty input, or from the start of the current text, to recall older messages. ArrowDown moves forward and restores the draft after the newest entry.
 
+The conversation log is keyboard focusable, and controls in the closed History drawer stay out of keyboard navigation.
+
 Drag the handle above the input to make it taller, up to 400 pixels. The handle also supports ArrowUp, ArrowDown, Home, and End from the keyboard.
 
 User messages taller than 400 pixels start collapsed. Use Show more and Show less to expand or collapse them. Wide code and tool output scroll inside their own blocks instead of widening the whole panel.
@@ -48,10 +50,12 @@ User messages taller than 400 pixels start collapsed. Use Show more and Show les
 Assistant answers support regular Markdown, CJK text, and math. Fenced blocks can also render:
 
 - Mermaid diagrams.
-- JSON-based charts using bar, line, pie, or scatter series.
+- Data-only JSON charts using bar, line, pie, or scatter datasets.
 - HTML with a Code and Preview switch.
 
 HTML previews are static. Scripts, forms, popups, and network requests are blocked inside the preview. Code is always available as the default view.
+
+Charts follow the system light or dark color scheme, including changes while the panel remains open.
 
 Hibro treats image data and image addresses differently:
 

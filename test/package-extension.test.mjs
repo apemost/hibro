@@ -42,8 +42,10 @@ test('creates a tag-named ZIP with extension files at the archive root', (t) => 
   const sourceDirectory = join(workspace, 'dist');
   const outputDirectory = join(workspace, 'releases');
   mkdirSync(join(sourceDirectory, 'assets'), { recursive: true });
+  mkdirSync(join(sourceDirectory, '.vite'), { recursive: true });
   writeFileSync(join(sourceDirectory, 'manifest.json'), '{"name":"Hibro"}\n');
   writeFileSync(join(sourceDirectory, 'assets', 'panel.js'), 'export {}\n');
+  writeFileSync(join(sourceDirectory, '.vite', 'license.md'), '# Licenses\n');
   t.after(() => rmSync(workspace, { recursive: true, force: true }));
 
   const packageRun = spawnSync(
@@ -65,6 +67,7 @@ test('creates a tag-named ZIP with extension files at the archive root', (t) => 
   const entries = listRun.stdout.trim().split('\n');
   assert.ok(entries.includes('manifest.json'));
   assert.ok(entries.includes('assets/panel.js'));
+  assert.ok(entries.includes('.vite/license.md'));
   assert.ok(entries.every((entry) => !entry.startsWith('dist/')));
 });
 

@@ -94,6 +94,7 @@ export function ConversationDrawer({
         className={`conv-drawer${open ? ' open' : ''}`}
         aria-hidden={!open}
         aria-label={messages.recentConversations}
+        inert={!open}
       >
         <div className="conv-drawer-head">
           <h2 className="conv-drawer-title">{messages.history}</h2>
