@@ -20,6 +20,7 @@ import {
   writeActiveConversation,
   writeConversations,
 } from '@/shared/conversations';
+import { getActiveTab } from './activeTab';
 
 export type ChatStatus = 'ready' | 'streaming';
 
@@ -277,14 +278,6 @@ function normalizeUrl(raw: string): string {
   } catch {
     return raw;
   }
-}
-
-async function getActiveTab(): Promise<chrome.tabs.Tab> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || tab.id === undefined) {
-    throw new Error('Could not find the active tab.');
-  }
-  return tab;
 }
 
 /** Manages streaming chat state and persisted conversation history. */

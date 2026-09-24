@@ -26,6 +26,10 @@ Very large pages can take too long to read. If a read times out, retry with a re
 
 Hibro cannot inspect browser settings pages, the browser's extension store, or other protected pages. Open a regular `http://` or `https://` page instead.
 
+## Only part of a long page is translated
+
+Hibro translates up to a fixed amount of text in one run. On a page longer than that, the first part is translated and the rest is left in its original language.
+
 ## A page action reports a debugger error
 
 Close browser DevTools and pause other extensions that may be debugging the same tab, then retry. Chrome allows only one debugger attachment to a target at a time.

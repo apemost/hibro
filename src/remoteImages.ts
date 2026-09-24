@@ -13,29 +13,13 @@ import {
   type RemoteImageResult,
   validateRemoteImageUrl,
 } from './shared/remoteImages';
+import { PANEL_PAGE_PATH, isTrustedExtensionPort } from './panelPort';
 
 const REMOTE_IMAGE_TIMEOUT_MS = 15_000;
 
 class RemoteImageFetchError extends Error {
   constructor(readonly code: RemoteImageErrorCode) {
     super(code);
-  }
-}
-
-function isTrustedPanelPort(port: chrome.runtime.Port): boolean {
-  const sender = port.sender;
-  if (!sender || sender.id !== chrome.runtime.id) return false;
-  const extensionOrigin = new URL(chrome.runtime.getURL('/')).origin;
-  if (sender.origin && sender.origin !== extensionOrigin) return false;
-  if (!sender.url) return false;
-  try {
-    const senderUrl = new URL(sender.url);
-    return (
-      senderUrl.origin === extensionOrigin &&
-      senderUrl.pathname === '/src/panel.html'
-    );
-  } catch {
-    return false;
   }
 }
 
@@ -139,7 +123,7 @@ async function fetchRemoteImage(
 
 /** Handles one guarded remote-image request from a verified side-panel port. */
 export function attachRemoteImagePort(port: chrome.runtime.Port): void {
-  if (!isTrustedPanelPort(port)) {
+  if (!isTrustedExtensionPort(port, [PANEL_PAGE_PATH])) {
     port.disconnect();
     return;
   }

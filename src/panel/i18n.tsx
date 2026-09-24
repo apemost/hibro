@@ -1,4 +1,5 @@
-// Side-panel translations backed by the language selected in Settings.
+// Translations for the side panel and the toolbar popup, backed by the
+// language selected in Settings.
 
 import {
   DEFAULT_UI_LANGUAGE,
@@ -46,6 +47,12 @@ export interface PanelMessages {
   daysAgo: (count: number) => string;
   llmProvider: string;
   noProvider: string;
+  showOriginal: string;
+  translatingProgress: (done: number, total: number) => string;
+  translatePage: string;
+  translateInto: string;
+  translationTarget: string;
+  openSidePanel: string;
   copy: string;
   copied: string;
   explain: string;
@@ -100,6 +107,13 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     daysAgo: (count) => `${count}d`,
     llmProvider: 'LLM provider',
     noProvider: 'No provider',
+    showOriginal: 'Show original only',
+    translatingProgress: (done, total) =>
+      total > 0 ? `Translating… ${done}/${total}` : 'Translating…',
+    translatePage: 'Translate page',
+    translateInto: 'Translate into',
+    translationTarget: 'Translation language',
+    openSidePanel: 'Open side panel',
     copy: 'Copy',
     copied: 'Copied',
     explain: 'Explain',
@@ -158,6 +172,13 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     daysAgo: (count) => `${count} 天`,
     llmProvider: 'LLM 服务商',
     noProvider: '尚未配置服务商',
+    showOriginal: '只看原文',
+    translatingProgress: (done, total) =>
+      total > 0 ? `翻译中… ${done}/${total}` : '翻译中…',
+    translatePage: '翻译页面',
+    translateInto: '翻译成',
+    translationTarget: '翻译目标语言',
+    openSidePanel: '打开侧边栏',
     copy: '复制',
     copied: '已复制',
     explain: '解释',

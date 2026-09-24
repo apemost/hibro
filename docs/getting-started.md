@@ -17,7 +17,7 @@ Hibro uses model tools for page questions as well as page actions. A chat-only m
 2. Choose the install action and approve the browser prompt.
 3. Pin Hibro to the browser toolbar if you want quick access.
 
-Click the Hibro toolbar button to open the side panel.
+Click the Hibro toolbar button to open its menu. From there you can translate the current page or open the side panel.
 
 ## Add a provider
 

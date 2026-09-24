@@ -3,9 +3,13 @@ import {
   DEFAULT_UI_LANGUAGE,
   HIBRO_OPTIONS_KEY,
   UI_LANGUAGE_LABELS,
+  readTranslationTarget,
   readUiLanguage,
+  resolveTranslationTarget,
   resolveUiLanguage,
+  writeTranslationTarget,
   writeUiLanguage,
+  type TranslationLanguage,
   type UiLanguage,
 } from '@/shared/language';
 
@@ -25,6 +29,8 @@ interface OptionsMessages {
   };
   general: {
     languageDescription: string;
+    translationTarget: string;
+    translationTargetDescription: string;
   };
   common: {
     name: string;
@@ -87,6 +93,9 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
     general: {
       languageDescription:
         'Choose the language used in Settings and the side panel.',
+      translationTarget: 'Translation language',
+      translationTargetDescription:
+        'Language the side panel translates page text into.',
     },
     common: {
       name: 'Name',
@@ -164,6 +173,8 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
     },
     general: {
       languageDescription: '选择设置页和侧边栏的显示语言。',
+      translationTarget: '翻译目标语言',
+      translationTargetDescription: '侧边栏将页面正文翻译成的语言。',
     },
     common: {
       name: '名称',
@@ -246,4 +257,23 @@ export async function writeOptionsLanguage(
   language: OptionsLanguage,
 ): Promise<void> {
   await writeUiLanguage(language);
+}
+
+/** Returns the translation target stored in the General options object. */
+export function resolveOptionsTranslationTarget(
+  value: unknown,
+): TranslationLanguage {
+  return resolveTranslationTarget(value);
+}
+
+/** Reads the language page translation renders into. */
+export async function readOptionsTranslationTarget(): Promise<TranslationLanguage> {
+  return readTranslationTarget();
+}
+
+/** Stores the language page translation renders into. */
+export async function writeOptionsTranslationTarget(
+  target: TranslationLanguage,
+): Promise<void> {
+  await writeTranslationTarget(target);
 }

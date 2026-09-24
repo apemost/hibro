@@ -56,14 +56,18 @@ h1 {
   margin: 0;
 }
 
+/* Settings are separated by space and a hairline between them, not by a box
+   each: adjacent boxes read as one double-ruled block. */
 .setting-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
   align-items: center;
   gap: 24px;
-  padding: 16px;
-  border: 1px solid rgba(128, 128, 128, 0.28);
-  border-radius: 8px;
+  padding: 16px 0;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid rgba(128, 128, 128, 0.28);
 }
 
 .setting-copy {

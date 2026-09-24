@@ -1,13 +1,23 @@
 // Hibro content script: page perception for the reading assistant and the
 // agent. Provides readable text, a Markdown rendering, a structural overview,
-// tagged interactive elements, viewport text, and per-element detail.
+// tagged interactive elements, viewport text, and per-element detail. It also
+// renders page translations in place, one translation block under each source
+// block.
 // Interactive elements are tagged with a data-hibro-id attribute so the
 // background worker can address them later via the debugger (CDP runs in the
 // page's main world, separate from this isolated world).
 
 import TurndownService from 'turndown';
+import type { TranslationBlock } from './shared/translation';
 
 const HIBRO_ID_ATTR = 'data-hibro-id';
+// Attribute tagging a source block collected for translation.
+const TRANSLATION_BLOCK_ATTR = 'data-hibro-block';
+// Attribute tagging a translation this script rendered.
+const TRANSLATION_NODE_ATTR = 'data-hibro-translation';
+// Upper bounds on one translation run, so a long page cannot run away.
+const MAX_TRANSLATION_BLOCKS = 300;
+const MAX_TRANSLATION_CHARS = 40000;
 const MAX_TEXT_LENGTH = 12000;
 const MAX_MARKDOWN_LENGTH = 12000;
 const MAX_SNAPSHOT_TEXT = 2000;
@@ -78,11 +88,33 @@ interface ElementDetailResponse {
   bbox: { x: number; y: number; w: number; h: number };
 }
 
+interface TranslationCollectResponse {
+  blocks: TranslationBlock[];
+  truncated: boolean;
+}
+
+interface TranslationApplyResponse {
+  applied: number;
+}
+
+interface TranslationRestoreResponse {
+  applied: number;
+  truncated: boolean;
+}
+
+interface TranslationStateResponse {
+  active: boolean;
+  count: number;
+}
+
 interface ContentMessage {
   type?: string;
   selector?: string;
   filter?: string;
   id?: number | string;
+  items?: unknown;
+  language?: string;
+  target?: string;
 }
 
 const contentScriptState = globalThis as typeof globalThis & {
@@ -128,6 +160,28 @@ function handleContentMessage(
       break;
     case 'hibro:element-detail':
       sendResponse(elementDetail(toId(msg.id)));
+      break;
+    case 'hibro:translate-collect':
+      sendResponse(collectTranslationBlocks());
+      break;
+    case 'hibro:translate-apply':
+      sendResponse({
+        applied: applyTranslations(msg.items, msg.target, msg.language),
+      } satisfies TranslationApplyResponse);
+      break;
+    case 'hibro:translate-restore':
+      sendResponse({
+        applied: restoreTranslations(msg.target),
+        truncated: translationCache?.truncated ?? false,
+      } satisfies TranslationRestoreResponse);
+      break;
+    case 'hibro:translate-revert':
+      sendResponse({
+        applied: revertTranslations(),
+      } satisfies TranslationApplyResponse);
+      break;
+    case 'hibro:translate-state':
+      sendResponse(translationState());
       break;
   }
 }
@@ -387,4 +441,229 @@ function elementDetail(id: number): ElementDetailResponse | null {
       h: Math.round(rect.height),
     },
   };
+}
+
+// --- Page translation ---
+
+// Block tags that carry body text. A translation is rendered under each of
+// them, so the page reads as one source block followed by its translation.
+const TRANSLATABLE_BLOCK_SELECTOR =
+  'p,h1,h2,h3,h4,h5,h6,li,dd,dt,blockquote,figcaption,td,th,summary';
+
+// Page furniture and verbatim text are left alone: navigation and side rails
+// are not body text, and code must stay in its original form.
+const TRANSLATION_SKIP_SELECTOR =
+  'nav,aside,footer,pre,code,kbd,samp,script,style,noscript,textarea,svg,[contenteditable="true"],[aria-hidden="true"],[hidden]';
+
+// Skip markers, bullets, and bare numbers: nothing to translate there.
+const TRANSLATABLE_TEXT = /\p{L}/u;
+const MIN_TRANSLATION_TEXT = 2;
+
+// Whether a child node belongs to this block's own text. Nested blocks (a list
+// item's sub-list, a table cell's paragraph) are translated on their own, and
+// translations Hibro already inserted are never re-read as source text.
+// Children the reader cannot see are dropped too: documentation themes hang a
+// permalink anchor off every heading and keep it visibility:hidden until
+// hover, and its pilcrow would otherwise be sent to the model as part of the
+// heading text.
+function isVisibleChild(el: Element): boolean {
+  if (el.getClientRects().length === 0) return false;
+  return getComputedStyle(el).visibility !== 'hidden';
+}
+
+function ownsChildNode(node: Node): boolean {
+  if (node.nodeType === Node.TEXT_NODE) return true;
+  if (node.nodeType !== Node.ELEMENT_NODE) return false;
+  const el = node as Element;
+  if (el.hasAttribute(TRANSLATION_NODE_ATTR)) return false;
+  if (!isVisibleChild(el)) return false;
+  return (
+    !el.matches(TRANSLATABLE_BLOCK_SELECTOR) &&
+    !el.querySelector(TRANSLATABLE_BLOCK_SELECTOR)
+  );
+}
+
+// The text a block owns directly.
+function ownBlockText(el: HTMLElement): string {
+  let text = '';
+  for (const node of Array.from(el.childNodes)) {
+    if (!ownsChildNode(node)) continue;
+    text += node.textContent || '';
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+// The child the translation is inserted before, or null to append it last.
+// It goes before the first nested block (so a list item's translation lands
+// above its sub-list, not after it) and otherwise at the very end. Appending
+// last matters for trailing inline content the block does not own: a
+// documentation theme's hidden permalink anchor would otherwise be pushed
+// past the block-level translation and take a blank line of its own.
+function translationAnchor(el: HTMLElement): Node | null {
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const child = node as Element;
+    if (child.hasAttribute(TRANSLATION_NODE_ATTR)) continue;
+    if (
+      child.matches(TRANSLATABLE_BLOCK_SELECTOR) ||
+      child.querySelector(TRANSLATABLE_BLOCK_SELECTOR)
+    ) {
+      return child;
+    }
+  }
+  return null;
+}
+
+function isTranslatableBlock(el: HTMLElement): boolean {
+  if (el.closest(TRANSLATION_SKIP_SELECTOR)) return false;
+  if (el.closest(`[${TRANSLATION_NODE_ATTR}]`)) return false;
+  // Rendered check, not a viewport check: getClientRects covers boxes below
+  // the fold but drops display:none and collapsed subtrees.
+  return el.getClientRects().length > 0;
+}
+
+// What the page was last translated into, kept so that hiding the translation
+// and asking for the same language again costs nothing. It lives in the page,
+// so a reload drops it and the next run translates afresh.
+interface TranslationCache {
+  target: string;
+  truncated: boolean;
+  items: { el: HTMLElement; text: string; language?: string }[];
+}
+
+let translationCache: TranslationCache | null = null;
+
+// Tag the body blocks of the readable root and return their source text.
+// Previous tags, translations, and the cached translation are cleared first,
+// so every run starts from the untranslated page and ids are fresh and
+// contiguous.
+function collectTranslationBlocks(): TranslationCollectResponse {
+  revertTranslations();
+  translationCache = null;
+  const root = readRoot();
+  if (!root) return { blocks: [], truncated: false };
+
+  const blocks: TranslationBlock[] = [];
+  let chars = 0;
+  let truncated = false;
+  for (const el of root.querySelectorAll<HTMLElement>(
+    TRANSLATABLE_BLOCK_SELECTOR,
+  )) {
+    if (!isTranslatableBlock(el)) continue;
+    const text = ownBlockText(el);
+    if (text.length < MIN_TRANSLATION_TEXT || !TRANSLATABLE_TEXT.test(text)) {
+      continue;
+    }
+    if (
+      blocks.length >= MAX_TRANSLATION_BLOCKS ||
+      chars + text.length > MAX_TRANSLATION_CHARS
+    ) {
+      truncated = true;
+      break;
+    }
+    const id = blocks.length + 1;
+    el.setAttribute(TRANSLATION_BLOCK_ATTR, String(id));
+    blocks.push({ id, text });
+    chars += text.length;
+  }
+  translationCache = { target: '', truncated, items: [] };
+  return { blocks, truncated };
+}
+
+// A phrasing-content span is valid inside every block tag this feature targets,
+// and CSSOM properties survive a page CSP that would drop an injected
+// stylesheet or a style attribute. The translation inherits the block's own
+// styling and is separated by spacing alone, so it reads as part of the page
+// rather than as an annotation stuck onto it. dir="auto" keeps right-to-left
+// targets readable under a left-to-right source block.
+function buildTranslationNode(
+  text: string,
+  language?: string,
+): HTMLSpanElement {
+  const node = document.createElement('span');
+  node.setAttribute(TRANSLATION_NODE_ATTR, '');
+  if (language) node.lang = language;
+  node.dir = 'auto';
+  node.textContent = text;
+  node.style.display = 'block';
+  node.style.marginBlockStart = '0.35em';
+  return node;
+}
+
+// Render translated text under the matching source blocks. Batches arrive as
+// they finish, so this runs several times per translation run, and each one
+// adds to the cache that backs a later restore.
+function applyTranslations(
+  items: unknown,
+  target?: string,
+  language?: string,
+): number {
+  if (!Array.isArray(items)) return 0;
+  if (translationCache && target) translationCache.target = target;
+  let applied = 0;
+  for (const entry of items as { id?: unknown; text?: unknown }[]) {
+    const id = Number(entry?.id);
+    const text = String(entry?.text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!Number.isFinite(id) || !text) continue;
+    const el = document.querySelector<HTMLElement>(
+      `[${TRANSLATION_BLOCK_ATTR}="${id}"]`,
+    );
+    if (!el) continue;
+    el.querySelector(`:scope > [${TRANSLATION_NODE_ATTR}]`)?.remove();
+    el.insertBefore(
+      buildTranslationNode(text, language),
+      translationAnchor(el),
+    );
+    translationCache?.items.push({ el, text, language });
+    applied++;
+  }
+  return applied;
+}
+
+/**
+ * Re-renders the cached translation when it was made for the same target.
+ * A cached block whose element has left the document means the page moved on
+ * since that run, so the whole cache is dropped and the caller translates
+ * again rather than restoring a stale half of the page.
+ */
+function restoreTranslations(target?: string): number {
+  const cache = translationCache;
+  if (!cache || !target || !cache.target || cache.target !== target) return 0;
+  if (cache.items.length === 0) return 0;
+  if (cache.items.some((item) => !item.el.isConnected)) {
+    translationCache = null;
+    return 0;
+  }
+  let restored = 0;
+  for (const item of cache.items) {
+    item.el.querySelector(`:scope > [${TRANSLATION_NODE_ATTR}]`)?.remove();
+    item.el.insertBefore(
+      buildTranslationNode(item.text, item.language),
+      translationAnchor(item.el),
+    );
+    restored++;
+  }
+  return restored;
+}
+
+// Show the untranslated page again: drop the inserted nodes and the source
+// tags, leaving no Hibro markup behind. The cache survives and holds the
+// elements directly, so asking for the same language again costs no model
+// call even though the tags are gone.
+function revertTranslations(): number {
+  const nodes = document.querySelectorAll(`[${TRANSLATION_NODE_ATTR}]`);
+  nodes.forEach((node) => node.remove());
+  document
+    .querySelectorAll(`[${TRANSLATION_BLOCK_ATTR}]`)
+    .forEach((el) => el.removeAttribute(TRANSLATION_BLOCK_ATTR));
+  return nodes.length;
+}
+
+// Lets the side panel show the right toggle state for the current tab. A page
+// load clears the DOM, so a reloaded tab reports itself as untranslated.
+function translationState(): TranslationStateResponse {
+  const count = document.querySelectorAll(`[${TRANSLATION_NODE_ATTR}]`).length;
+  return { active: count > 0, count };
 }

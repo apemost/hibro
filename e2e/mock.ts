@@ -17,7 +17,7 @@ export interface AgentScriptCall {
 
 export interface MockServer {
   port: number;
-  stats: { agent: number; stream: number; explain: number };
+  stats: { agent: number; stream: number; explain: number; translate: number };
   // Authorization headers received by the OpenAI-compatible endpoint.
   authorizationHeaders: string[];
   // Each system prompt received on a unified-loop call, in order. Lets e2e
@@ -83,6 +83,22 @@ const PENDING_PAGE = `<!doctype html>
 // Messages that look like page actions get a default scroll call when no
 // script is set (mirrors what a real model would do with them).
 const ACTION_RE = /scroll|click|type|search|navigate|press|fill/i;
+
+const TRANSLATION_SEGMENT = /^\s*\[\[(\d+)\]\]\s?(.*)$/;
+
+// Answers a page-translation request by echoing the marker protocol back with
+// a fixed prefix, so e2e can assert that each translation landed in the block
+// it was asked for.
+function translateSegments(prompt: string): string {
+  return prompt
+    .split('\n')
+    .map((line) => {
+      const match = TRANSLATION_SEGMENT.exec(line);
+      return match ? `[[${match[1]}]] ZH:${match[2]}` : null;
+    })
+    .filter((line): line is string => line !== null)
+    .join('\n');
+}
 
 function completion(content: string) {
   return {
@@ -320,7 +336,7 @@ function anthropicJson(
 }
 
 export async function startMock(): Promise<MockServer> {
-  const stats = { agent: 0, stream: 0, explain: 0 };
+  const stats = { agent: 0, stream: 0, explain: 0, translate: 0 };
   const authorizationHeaders: string[] = [];
   const systems: string[] = [];
   const userMessages: string[] = [];
@@ -389,6 +405,12 @@ export async function startMock(): Promise<MockServer> {
         if (sys.includes('selected an excerpt')) {
           stats.explain++;
           json('mock explanation');
+          return;
+        }
+        // Page translation: one non-streaming batch of marked segments.
+        if (sys.includes('You translate web page text into')) {
+          stats.translate++;
+          json(translateSegments(lastUser));
           return;
         }
         const hasTools = Array.isArray(parsed.tools) && parsed.tools.length > 0;

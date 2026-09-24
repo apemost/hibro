@@ -50,6 +50,8 @@ test('extension loads with required permissions', async ({ extensionId }) => {
   expect(manifest.permissions).toContain('scripting');
   expect(manifest.permissions).not.toContain('tabs');
   expect(manifest.host_permissions).toContain('<all_urls>');
+  // The toolbar popup replaces chrome.action.onClicked, so it must ship.
+  expect(manifest.action?.default_popup).toBe('src/popup.html');
   expect(manifest.content_security_policy?.extension_pages).toContain(
     "img-src 'self' blob: data:",
   );
@@ -620,7 +622,7 @@ test('privacy-consent errors link directly to provider settings', async ({
   });
   await options.getByRole('tab', { name: 'General' }).click();
   await options
-    .getByRole('combobox', { name: 'Language' })
+    .getByRole('combobox', { name: 'Language', exact: true })
     .selectOption('zh-CN');
   await options.evaluate(async () =>
     chrome.storage.local.remove('hibroPrivacyConsent'),
@@ -864,7 +866,10 @@ test('options page switches to Chinese and remembers the language', async ({
   ).toHaveCount(0);
   await generalTab.click();
   await expect(generalPanel).toBeVisible();
-  const language = generalPanel.getByRole('combobox', { name: 'Language' });
+  const language = generalPanel.getByRole('combobox', {
+    name: 'Language',
+    exact: true,
+  });
   await expect(generalPanel.locator('label[for="optionsLanguage"]')).toHaveText(
     'Language',
   );
@@ -920,7 +925,9 @@ test('options page switches to Chinese and remembers the language', async ({
   ).toHaveAttribute('aria-selected', 'true');
   await reopened.getByRole('tab', { name: '常规' }).click();
   await expect(
-    reopened.locator('#panel-general').getByRole('combobox', { name: '语言' }),
+    reopened
+      .locator('#panel-general')
+      .getByRole('combobox', { name: '语言', exact: true }),
   ).toHaveValue('zh-CN');
   await reopened.evaluate(async () => {
     await chrome.storage.local.set({
@@ -1006,7 +1013,10 @@ test('Settings page does not scroll horizontally in either language', async ({
   await page.goto(`chrome-extension://${extensionId}/src/options.html`);
   expect(await horizontalOverflow(page)).toEqual({ page: 0, scrollers: [] });
   await page.getByRole('tab', { name: 'General' }).click();
-  const language = page.getByRole('combobox', { name: 'Language' });
+  const language = page.getByRole('combobox', {
+    name: 'Language',
+    exact: true,
+  });
   await expect(language).toBeVisible();
   await language.selectOption('zh-CN');
   expect(await horizontalOverflow(page)).toEqual({ page: 0, scrollers: [] });
@@ -1029,7 +1039,10 @@ test('Settings language setting updates an open side panel and persists', async 
     panel.getByRole('heading', { name: 'Ask about this page' }),
   ).toBeVisible();
   await options.getByRole('tab', { name: 'General' }).click();
-  const language = options.getByRole('combobox', { name: 'Language' });
+  const language = options.getByRole('combobox', {
+    name: 'Language',
+    exact: true,
+  });
   await expect(language).toBeVisible();
   await language.selectOption('zh-CN');
 
@@ -1146,6 +1159,18 @@ async function openPanelOnFixture(
   await panel.goto(`chrome-extension://${extensionId}/src/panel.html`);
   await fixture.bringToFront();
   return { fixture, panel };
+}
+
+async function openPopupOnFixture(
+  browserContext: import('@playwright/test').BrowserContext,
+  extensionId: string,
+) {
+  const fixture = await browserContext.newPage();
+  await fixture.goto(`http://127.0.0.1:${mock.port}/`);
+  const popup = await browserContext.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/src/popup.html`);
+  await fixture.bringToFront();
+  return { fixture, popup };
 }
 
 async function horizontalOverflow(page: import('@playwright/test').Page) {
@@ -1589,6 +1614,215 @@ test('chat streams a markdown answer', async ({
   expect(mock.stats.agent).toBeGreaterThan(0);
   expect(mock.stats.stream).toBeGreaterThan(0);
   await panel.close();
+  await fixture.close();
+});
+
+test('translate toggle renders translations under the page body blocks', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const { fixture, popup } = await openPopupOnFixture(
+    browserContext,
+    extensionId,
+  );
+  const before = mock.stats.translate;
+  const toggle = popup.locator('#popupTranslateBtn');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+
+  // Every translation sits inside the block it translates, after that block's
+  // own text, and the original text is still there.
+  const rendered = await fixture.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-hibro-translation]')).map(
+      (node) => {
+        const parent = node.parentElement;
+        return {
+          text: node.textContent ?? '',
+          tag: parent?.tagName.toLowerCase() ?? '',
+          blockId: parent?.getAttribute('data-hibro-block') ?? '',
+          isLastChild: parent?.lastElementChild === node,
+          sourceText: Array.from(parent?.childNodes ?? [])
+            .filter((child) => child !== node)
+            .map((child) => child.textContent ?? '')
+            .join('')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        };
+      },
+    ),
+  );
+  expect(mock.stats.translate).toBeGreaterThan(before);
+  expect(rendered.length).toBeGreaterThan(0);
+  expect(rendered.map((entry) => entry.tag).sort()).toEqual(['h1', 'p', 'p']);
+  for (const entry of rendered) {
+    expect(entry.blockId).not.toBe('');
+    expect(entry.isLastChild).toBe(true);
+    // The mock echoes each segment back, so a translation that reached the
+    // wrong block would not match its own source text.
+    expect(entry.text).toBe(`ZH:${entry.sourceText}`);
+  }
+  expect(
+    rendered.some((entry) => entry.sourceText === 'HIBRO E2E FIXTURE'),
+  ).toBe(true);
+
+  // A clean run reports no failure in the popup.
+  await expect(popup.locator('.popup-error')).toHaveCount(0);
+
+  // Toggling back restores the untranslated page.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(0);
+  await expect(fixture.locator('[data-hibro-block]')).toHaveCount(0);
+  expect(
+    await fixture.evaluate(() => document.body.innerText.includes('ZH:')),
+  ).toBe(false);
+  await popup.close();
+  await fixture.close();
+});
+
+test('showing the original again keeps the translation for the same language', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const { fixture, popup } = await openPopupOnFixture(
+    browserContext,
+    extensionId,
+  );
+  const toggle = popup.locator('#popupTranslateBtn');
+  const translations = fixture.locator('[data-hibro-translation]');
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  await expect(translations).toHaveCount(3);
+  const firstRun = mock.stats.translate;
+  expect(firstRun).toBeGreaterThan(0);
+
+  // Show the original, then ask for the same language again: the page still
+  // holds that translation, so nothing is sent to the model.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(translations).toHaveCount(0);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  await expect(translations).toHaveCount(3);
+  expect(mock.stats.translate).toBe(firstRun);
+  expect(
+    await fixture.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-hibro-translation]')).every(
+        (node) => (node.textContent ?? '').startsWith('ZH:'),
+      ),
+    ),
+  ).toBe(true);
+
+  // A different target language is not what the page holds, so it translates.
+  await popup.evaluate(async () =>
+    chrome.storage.local.set({
+      hibroOptions: { language: 'en', translationTarget: 'ja' },
+    }),
+  );
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  expect(mock.stats.translate).toBeGreaterThan(firstRun);
+
+  // Reloading the tab drops the page's copy, so the next run translates again.
+  // The panel notices the load and stops offering to show the original.
+  const beforeReload = mock.stats.translate;
+  await fixture.reload();
+  await expect(translations).toHaveCount(0);
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false', {
+    timeout: 10_000,
+  });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  await expect(translations).toHaveCount(3);
+  expect(mock.stats.translate).toBeGreaterThan(beforeReload);
+
+  await popup.close();
+  await fixture.close();
+});
+
+test('toolbar popup translates the page and shares state with the panel', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const fixture = await browserContext.newPage();
+  await fixture.goto(`http://127.0.0.1:${mock.port}/`);
+  const popup = await browserContext.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/src/popup.html`);
+  await fixture.bringToFront();
+
+  const toggle = popup.locator('#popupTranslateBtn');
+  const target = popup.locator('#popupTranslationTarget');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveAttribute('data-tip', 'Translate page');
+  // Without an explicit choice the target follows the interface language.
+  await expect(target).toHaveValue('en');
+  // The popup owns the only in-extension way to reach the side panel.
+  await expect(popup.locator('#popupOpenPanelBtn')).toBeVisible();
+
+  // The gear opens Settings without going through the side panel first.
+  const settingsPage = browserContext.waitForEvent('page');
+  await popup.locator('#popupSettingsBtn').click();
+  const settings = await settingsPage;
+  await expect(settings).toHaveURL(
+    `chrome-extension://${extensionId}/src/options.html`,
+  );
+  await settings.close();
+  await fixture.bringToFront();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 30_000,
+  });
+  await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(3);
+  // Only the action changes: the language stays put so the row never reflows.
+  await expect(toggle).toHaveAttribute('data-tip', 'Show original only');
+  await expect(target).toBeVisible();
+  await expect(target).toHaveValue('en');
+
+  // Translation state lives on the tab, not in the surface that started it:
+  // the real popup is rebuilt on every icon click, and a fresh one still finds
+  // the page translated.
+  await popup.reload();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 10_000,
+  });
+  await expect(toggle).toHaveAttribute('data-tip', 'Show original only');
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(0);
+
+  // The popup's language picker writes the same preference Settings uses.
+  await target.selectOption('ja');
+  await expect
+    .poll(async () =>
+      popup.evaluate(
+        async () =>
+          (
+            (await chrome.storage.local.get('hibroOptions')).hibroOptions as {
+              translationTarget?: string;
+            }
+          )?.translationTarget,
+      ),
+    )
+    .toBe('ja');
+
+  await popup.close();
   await fixture.close();
 });
 

@@ -4,7 +4,7 @@ Hibro reads and operates the current page from a browser side panel. This page d
 
 ## Chat about a page
 
-Open Hibro from the browser toolbar and ask a question in the side panel. Hibro sends the page title, URL, and a small page overview with each request. It reads more of the page only when the task needs it.
+Click the Hibro toolbar button and choose the side panel, then ask a question there. Hibro sends the page title, URL, and a small page overview with each request. It reads more of the page only when the task needs it.
 
 Answers stream into the conversation as they arrive. Hibro follows the language used by you and the page. While the model is working, the panel shows a short status or the latest reasoning lines above the input. Reasoning appears only in the temporary readout, not in the answer bubble.
 
@@ -27,6 +27,34 @@ Use Stop to interrupt a running request. Starting another chat or switching conv
 Hibro limits the number of tool steps in one request. If a longer task reaches the limit, the answer says that the task may be incomplete. Send a follow-up to continue.
 
 Page questions and page actions both require a model that supports function calling.
+
+## The toolbar menu
+
+Clicking the Hibro toolbar button opens a small menu with the things you reach in one click:
+
+- Pick the language, then translate the page with the button beside it. Once the page is translated that button shows the original again, so one control does both.
+- Open Settings, or the side panel, from the two icons in the top right.
+
+The menu closes as soon as you click back into the page. A translation it started keeps running and keeps filling in the page.
+
+## Translate a page
+
+The toolbar menu renders the page in another language without hiding the original. Hibro collects the text blocks of the main content, translates them, and puts each translation directly under the block it came from, so the page reads as one source paragraph followed by its translation.
+
+Translating sends the page text to your provider and writes the replies into the open tab. The site is not changed and nothing is saved: press the button again, or reload the tab, to get the original page back. [Privacy policy](privacy.md) covers what a translation sends.
+
+The tab keeps the translation it was given. Showing the original and then asking for the same language again brings that translation straight back, with no new request to your provider. A different language, a reloaded tab, or a page that replaces its own content needs a fresh translation.
+
+What Hibro translates:
+
+- Paragraphs, headings, list items, table cells, quotes, and captions in the main content.
+- Not navigation, sidebars, page footers, code blocks, or text the page hides.
+
+Long pages are translated up to a fixed budget. When the page is longer than that budget, the first part is translated and the rest is left alone.
+
+Choose the target language in the toolbar menu or under the General tab in Settings; both set the same preference. It follows the interface language until you pick something else. You can also ask in chat, for example "translate this page" or "translate this page into Japanese", which reaches the same feature and accepts languages outside the Settings list.
+
+Translation uses your selected provider and requires a working provider profile, like any other request.
 
 ## Conversations and input
 

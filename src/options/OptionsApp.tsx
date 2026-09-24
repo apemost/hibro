@@ -21,10 +21,17 @@ import {
   OPTIONS_LANGUAGE_LABELS,
   OPTIONS_MESSAGES,
   readOptionsLanguage,
+  readOptionsTranslationTarget,
   resolveOptionsLanguage,
+  resolveOptionsTranslationTarget,
   writeOptionsLanguage,
+  writeOptionsTranslationTarget,
   type OptionsLanguage,
 } from './i18n';
+import {
+  TRANSLATION_LANGUAGES,
+  type TranslationLanguage,
+} from '@/shared/language';
 
 type SkillState = Record<string, { enabled?: boolean } | undefined>;
 type OptionsTab = 'general' | 'config' | 'skills';
@@ -83,6 +90,10 @@ export function OptionsApp() {
   const [editInstructions, setEditInstructions] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
 
+  // Defaults to the interface language until the stored preference loads.
+  const [translationTarget, setTranslationTarget] =
+    useState<TranslationLanguage>(DEFAULT_OPTIONS_LANGUAGE);
+
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -122,6 +133,9 @@ export function OptionsApp() {
       if (changes[OPTIONS_KEY]) {
         languageStorageVersion += 1;
         setLanguage(resolveOptionsLanguage(changes[OPTIONS_KEY].newValue));
+        setTranslationTarget(
+          resolveOptionsTranslationTarget(changes[OPTIONS_KEY].newValue),
+        );
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -136,6 +150,10 @@ export function OptionsApp() {
     void readOptionsLanguage().then((stored) => {
       if (alive && languageStorageVersion === languageReadVersion)
         setLanguage(stored);
+    });
+    void readOptionsTranslationTarget().then((stored) => {
+      if (alive && languageStorageVersion === languageReadVersion)
+        setTranslationTarget(stored);
     });
     void (async () => {
       const us = (await chrome.storage.local.get(USER_KEY))[USER_KEY] as
@@ -169,6 +187,11 @@ export function OptionsApp() {
   function changeLanguage(next: OptionsLanguage): void {
     setLanguage(next);
     void writeOptionsLanguage(next);
+  }
+
+  function changeTranslationTarget(next: TranslationLanguage): void {
+    setTranslationTarget(next);
+    void writeOptionsTranslationTarget(next);
   }
 
   function activateTab(name: OptionsTab): void {
@@ -395,6 +418,37 @@ export function OptionsApp() {
           >
             <option value="en">{OPTIONS_LANGUAGE_LABELS.en}</option>
             <option value="zh-CN">{OPTIONS_LANGUAGE_LABELS['zh-CN']}</option>
+          </select>
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-copy">
+            <label className="setting-label" htmlFor="optionsTranslationTarget">
+              {messages.general.translationTarget}
+            </label>
+            <p
+              id="optionsTranslationTargetDescription"
+              className="setting-description"
+            >
+              {messages.general.translationTargetDescription}
+            </p>
+          </div>
+          <select
+            className="setting-control"
+            id="optionsTranslationTarget"
+            aria-describedby="optionsTranslationTargetDescription"
+            value={translationTarget}
+            onChange={(e) =>
+              changeTranslationTarget(
+                e.currentTarget.value as TranslationLanguage,
+              )
+            }
+          >
+            {TRANSLATION_LANGUAGES.map((entry) => (
+              <option key={entry.code} value={entry.code}>
+                {entry.label}
+              </option>
+            ))}
           </select>
         </div>
       </section>

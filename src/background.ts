@@ -1,16 +1,7 @@
 // Runs model requests, page tools, and side-panel messaging in the extension
 // service worker. Provider credentials come from extension storage.
 
-import {
-  generateText,
-  streamText,
-  tool,
-  isStepCount,
-  type ModelMessage,
-} from 'ai';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { streamText, tool, isStepCount } from 'ai';
 import { z } from 'zod';
 import {
   resolveActiveSkills,
@@ -19,28 +10,24 @@ import {
 } from './skills';
 import { cdpClick, cdpType, cdpScroll, cdpNavigate, cdpPressKey } from './cdp';
 import type { HibroHistoryMessage, PanelEvent } from './shared/protocol';
-import {
-  activeProfile,
-  isComplete,
-  isSecureProviderBaseUrl,
-  readPrivacyConsent,
-  readProviderConfig,
-} from './shared/providers';
-import { ProviderVaultError } from './shared/providerVault';
+import { ProviderConsentRequiredError, friendlyError } from './errors';
+import { callAI, getModel } from './model';
+import { sendToTab } from './tabMessaging';
 import {
   normalizeImageMediaType,
   decodeImageBase64,
 } from './shared/imageAssets';
 import { REMOTE_IMAGE_PORT } from './shared/remoteImages';
 import { attachRemoteImagePort } from './remoteImages';
+import { TRANSLATE_PORT } from './shared/translation';
+import {
+  attachTranslatePort,
+  resolveTranslationTarget,
+  translatePage,
+} from './translate';
 
 // Page perception does not need extension storage; keep it in trusted contexts.
 void chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
-
-interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
 
 interface SendMessage {
   type: 'send';
@@ -57,40 +44,16 @@ interface ControlMessage {
 
 type PanelMessage = SendMessage | ControlMessage;
 
-class ProviderConsentRequiredError extends Error {}
-
-// Returns a usable provider profile or an error that tells the user what to fix.
-async function getConfig() {
-  const profile = activeProfile(await readProviderConfig());
-  if (!isComplete(profile)) {
-    throw new Error(
-      'No LLM provider is set up. Open the extension options (right-click the extension icon, or use Settings in the side panel) and add or select a provider.',
-    );
-  }
-  if (!isSecureProviderBaseUrl(profile.baseUrl)) {
-    throw new Error(
-      'Remote LLM provider URLs must use HTTPS. HTTP is allowed only for localhost and loopback addresses.',
-    );
-  }
-  if (!(await readPrivacyConsent())) {
-    throw new ProviderConsentRequiredError(
-      'Review and accept the provider data-use notice in Settings before starting a chat.',
-    );
-  }
-  return profile;
-}
-
 // Every request uses tools, including ordinary page questions.
 const MAX_AGENT_STEPS = 12;
-
-// Open the side panel when the toolbar action is clicked.
-chrome.action.onClicked.addListener((tab) => {
-  chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
-});
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === REMOTE_IMAGE_PORT) {
     attachRemoteImagePort(port);
+    return;
+  }
+  if (port.name === TRANSLATE_PORT) {
+    attachTranslatePort(port);
     return;
   }
   if (port.name !== 'hibro-panel') return;
@@ -137,93 +100,7 @@ function emit(port: chrome.runtime.Port, event: PanelEvent): void {
   }
 }
 
-function friendlyError(err: unknown): string {
-  if (err instanceof ProviderVaultError) {
-    return 'Hibro couldn’t unlock the saved LLM provider settings. Open Settings for details.';
-  }
-  const msg = String((err instanceof Error && err.message) || err);
-  if (msg.includes('Failed to fetch')) {
-    return 'Could not reach the AI service. Check the base URL in the options page and your network connection.';
-  }
-  if (msg.includes('chrome://') || msg.includes('Cannot access')) {
-    return 'This page is not supported (chrome:// pages, the Web Store, and other restricted pages cannot be accessed).';
-  }
-  if (msg.includes('Another debugger')) {
-    return 'The page is being debugged by another tool (e.g. DevTools). Close it and try again.';
-  }
-  if (
-    msg.includes('TAB_MESSAGE_TIMEOUT') ||
-    msg.includes('No tab with id') ||
-    msg.includes('Receiving end does not exist')
-  ) {
-    return 'Could not communicate with the page (the tab may have been open before the extension loaded). Reload the tab and try again.';
-  }
-  return msg;
-}
-
 // --- AI ---
-
-// Resolves the AI config and builds a model for the selected provider. The
-// generic OpenAI-compatible provider speaks standard Chat Completions and works
-// with secure remote or local development endpoints; the OpenAI provider targets OpenAI's own Chat
-// Completions API (base URL optional); the Anthropic provider speaks the
-// Messages API (/v1/messages). OpenAI and Anthropic default their endpoints, so
-// base URL is optional for them (set it for a proxy or the local mock).
-async function getModel() {
-  const profile = await getConfig();
-  if (profile.provider === 'anthropic') {
-    const anthropic = createAnthropic({
-      apiKey: profile.apiKey,
-      ...(profile.baseUrl
-        ? { baseURL: profile.baseUrl.replace(/\/+$/, '') }
-        : {}),
-    });
-    return anthropic.languageModel(profile.model);
-  }
-  if (profile.provider === 'openai') {
-    const openai = createOpenAI({
-      apiKey: profile.apiKey,
-      ...(profile.baseUrl
-        ? { baseURL: profile.baseUrl.replace(/\/+$/, '') }
-        : {}),
-    });
-    return openai.chat(profile.model);
-  }
-  const provider = createOpenAICompatible({
-    name: 'openai-compatible',
-    baseURL: profile.baseUrl!.replace(/\/+$/, ''),
-    apiKey: profile.apiKey,
-  });
-  return provider.chatModel(profile.model);
-}
-
-// One non-streaming model call, used by the selection-explain path. (The panel
-// run loop streams via streamText in handleSend.) Throws on an empty reply.
-async function callAI(
-  messages: ChatMessage[],
-  signal?: AbortSignal,
-): Promise<string> {
-  const model = await getModel();
-  // AI SDK v7 rejects role:'system' entries inside `messages`; lift the system
-  // prompt(s) into the `instructions` option. The provider serializes them
-  // back as a leading system message in the request body, so the wire format
-  // (and any OpenAI-compatible endpoint) is unchanged.
-  const instructions =
-    messages
-      .filter((m) => m.role === 'system')
-      .map((m) => m.content)
-      .join('\n\n') || undefined;
-  const turns = messages.filter((m) => m.role !== 'system') as ModelMessage[];
-  const { text } = await generateText({
-    model,
-    messages: turns,
-    instructions,
-    temperature: 0.3,
-    abortSignal: signal,
-  });
-  if (!text) throw new Error('The AI returned an empty response.');
-  return text;
-}
 
 // Flattens the panel's part-typed history into plain user/assistant text turns.
 // Only text parts are carried back; reasoning and tool steps are display-only
@@ -244,60 +121,6 @@ function flattenHistory(
     }));
 }
 
-// --- Tab / content script helpers ---
-
-const TAB_MESSAGE_TIMEOUT_MS = 8000;
-
-function sendToTabOnce<T>(
-  tabId: number,
-  msg: { type: string; [key: string]: unknown },
-): Promise<T> {
-  return Promise.race([
-    chrome.tabs.sendMessage(tabId, msg) as Promise<T>,
-    new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error('TAB_MESSAGE_TIMEOUT')),
-        TAB_MESSAGE_TIMEOUT_MS,
-      ),
-    ),
-  ]);
-}
-
-function isMissingContentScriptError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return message.includes('Receiving end does not exist');
-}
-
-async function injectContentScript(tabId: number): Promise<void> {
-  const files =
-    chrome.runtime
-      .getManifest()
-      .content_scripts?.flatMap((entry) => entry.js ?? []) ?? [];
-  if (!files.length) throw new Error('Hibro content script bundle is missing.');
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files,
-    injectImmediately: true,
-  });
-}
-
-// Tabs that predate an extension install or reload do not receive the current
-// content script. Retry once only when Chrome confirms that no receiver exists.
-// A timeout may be a live page reader doing expensive work, so reinjecting on
-// that signal would add another listener and repeat the same read.
-async function sendToTab<T>(
-  tabId: number,
-  msg: { type: string; [key: string]: unknown },
-): Promise<T> {
-  try {
-    return await sendToTabOnce<T>(tabId, msg);
-  } catch (err) {
-    if (!isMissingContentScriptError(err)) throw err;
-    await injectContentScript(tabId);
-    return sendToTabOnce<T>(tabId, msg);
-  }
-}
-
 // --- The assistant loop ---
 
 const ASSISTANT_SYSTEM_PROMPT = [
@@ -315,6 +138,7 @@ const ASSISTANT_SYSTEM_PROMPT = [
   '- get_element_detail({ id }): tag, role, text, attributes, value, bounding box for one element.',
   '- get_visible_text(): text currently in the viewport (use after scrolling).',
   '- read_page_as_markdown({ selector? }): the page or a subtree as Markdown.',
+  '- translate_page({ targetLanguage? }): translate the page body in place, rendering each translation under its source block. Use it when the user asks for the page itself to be translated, not when they ask you to translate a passage inside your answer.',
   '- click({ id }), type({ id, text, submit? }), scroll({ direction?, amount?, selector? }), navigate({ url }), press_key({ key }).',
   '',
   'Rules:',
@@ -485,6 +309,34 @@ async function handleSend(
             return r.truncated
               ? `${r.markdown}\n\n[content truncated]`
               : r.markdown;
+          },
+        ),
+    }),
+    translate_page: tool({
+      description:
+        'Translate the body of the current page in place: every source block keeps its text and gets its translation rendered right underneath. Omit targetLanguage to use the language configured in Settings.',
+      inputSchema: z.object({ targetLanguage: z.string().optional() }),
+      execute: async ({ targetLanguage }, { abortSignal }) =>
+        runWithCard(
+          emit,
+          cardId('translate'),
+          'translate_page',
+          { targetLanguage },
+          async () => {
+            const target = await resolveTranslationTarget(targetLanguage);
+            const result = await translatePage(tabId, target, {
+              signal: abortSignal,
+            });
+            if (result.total === 0) {
+              return 'No translatable body text was found on this page.';
+            }
+            const truncated = result.truncated
+              ? ' The page was too long to translate in one run, so only its first part was translated.'
+              : '';
+            if (result.restored) {
+              return `This page already held a ${result.targetName} translation, so it was shown again without translating anything anew (${result.count} blocks).${truncated}`;
+            }
+            return `Translated ${result.count} of ${result.total} page blocks into ${result.targetName}. The original text is still on the page, with each translation shown underneath it.${truncated}`;
           },
         ),
     }),

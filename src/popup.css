@@ -1,0 +1,202 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #5b6470;
+  --border: #d8dce1;
+  --hover: #f1f3f5;
+  --accent: #2563eb;
+  --danger: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Match the dark surface used by the browser and side panel. */
+    --bg: #313335;
+    --fg: #e2e6ea;
+    --muted: #a9b1ba;
+    --border: #4a4d50;
+    --hover: #3b3e41;
+    --accent: #60a5fa;
+    --danger: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Sized to the translate row at its widest: the longer interface language plus
+   the longest language name, with nothing to spare on the right. A wider
+   system font makes the picker give way rather than wrapping the row. */
+body {
+  width: 300px;
+  margin: 0;
+  padding: 8px;
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Segoe UI",
+    sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.popup-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 2px 10px;
+}
+
+/* The title takes the slack so the icon actions sit against the right edge. */
+.popup-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.popup-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.popup-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.popup-icon-btn:hover,
+.popup-icon-btn:focus-visible {
+  background: var(--hover);
+  color: inherit;
+}
+
+/* Tooltips open downward so they stay inside the popup. */
+.popup-icon-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.popup-icon-btn:hover::after,
+.popup-icon-btn:focus-visible::after {
+  opacity: 1;
+  transition: none;
+}
+
+.popup-icon-btn:disabled {
+  cursor: default;
+}
+
+.popup-icon-btn.is-on {
+  color: var(--accent);
+}
+
+/* The spinner marks a run that keeps going after the popup closes. */
+.popup-icon-btn.is-busy svg {
+  animation: popup-spin 1.1s linear infinite;
+}
+
+@keyframes popup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup-icon-btn.is-busy svg {
+    animation: none;
+  }
+}
+
+/* One stable row in every state: the label and the language picker never move,
+   and only the trailing icon button changes as a run starts and finishes. */
+.popup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Right padding matches the title bar so the two icon columns line up. */
+  padding: 6px 4px 4px 10px;
+}
+
+.popup-row-label {
+  flex: none;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Never grows past its content; shrinks only if the label needs the room. */
+.popup-row select {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+}
+
+.popup-row select:disabled {
+  opacity: 0.6;
+}
+
+/* Held against the right edge, under the title bar's icons. */
+.popup-row .popup-icon-btn {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+/* The row's action opens its tooltip upward; the popup ends just below it. */
+.popup-row .popup-icon-btn::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.popup-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  color: var(--danger);
+  line-height: 1.4;
+}
+
+.popup-error p {
+  flex: 1;
+  margin: 0;
+}
+
+.popup-error button {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
