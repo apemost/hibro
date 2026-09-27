@@ -1,5 +1,7 @@
 'use client';
 
+// Adapted from Vercel AI Elements. Copyright 2023 Vercel, Inc.
+// Licensed under Apache-2.0; modified for Hibro.
 // Lightweight AI Elements tool card built from native details and pre elements.
 
 import { cn } from '@/lib/utils';

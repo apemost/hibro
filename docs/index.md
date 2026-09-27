@@ -13,3 +13,7 @@ Start with [Getting started](getting-started.md) if you are installing Hibro for
 ## More guides
 
 - [Hibro skills](skills.md) explains the site skill format.
+
+## License
+
+Hibro is licensed under the [Apache License, Version 2.0](https://github.com/apemost/hibro/blob/main/LICENSE). Copyright 2026 Andrew Lyu.

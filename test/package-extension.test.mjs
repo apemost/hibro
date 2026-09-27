@@ -15,12 +15,16 @@ import test from 'node:test';
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 const packageScript = join(repositoryRoot, 'scripts/package-extension.mjs');
 const packageManager = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const licenseReport = '# Licenses\n';
 
 test('uses dist and releases as the default directories', (t) => {
   const workspace = mkdtempSync(join(tmpdir(), 'hibro-package-test-'));
   const sourceDirectory = join(workspace, 'dist');
-  mkdirSync(sourceDirectory);
+  mkdirSync(join(sourceDirectory, '.vite'), { recursive: true });
   writeFileSync(join(sourceDirectory, 'manifest.json'), '{"name":"Hibro"}\n');
+  writeFileSync(join(sourceDirectory, 'LICENSE'), 'Apache License\n');
+  writeFileSync(join(sourceDirectory, 'NOTICE'), 'Notice\n');
+  writeFileSync(join(sourceDirectory, '.vite', 'license.md'), licenseReport);
   t.after(() => rmSync(workspace, { recursive: true, force: true }));
 
   const packageRun = spawnSync(process.execPath, [packageScript, 'v1.2.3'], {
@@ -45,7 +49,9 @@ test('creates a tag-named ZIP with extension files at the archive root', (t) => 
   mkdirSync(join(sourceDirectory, '.vite'), { recursive: true });
   writeFileSync(join(sourceDirectory, 'manifest.json'), '{"name":"Hibro"}\n');
   writeFileSync(join(sourceDirectory, 'assets', 'panel.js'), 'export {}\n');
-  writeFileSync(join(sourceDirectory, '.vite', 'license.md'), '# Licenses\n');
+  writeFileSync(join(sourceDirectory, '.vite', 'license.md'), licenseReport);
+  writeFileSync(join(sourceDirectory, 'LICENSE'), 'Apache License\n');
+  writeFileSync(join(sourceDirectory, 'NOTICE'), 'Notice\n');
   t.after(() => rmSync(workspace, { recursive: true, force: true }));
 
   const packageRun = spawnSync(
@@ -67,8 +73,40 @@ test('creates a tag-named ZIP with extension files at the archive root', (t) => 
   const entries = listRun.stdout.trim().split('\n');
   assert.ok(entries.includes('manifest.json'));
   assert.ok(entries.includes('assets/panel.js'));
+  assert.ok(entries.includes('LICENSE'));
+  assert.ok(entries.includes('NOTICE'));
   assert.ok(entries.includes('.vite/license.md'));
   assert.ok(entries.every((entry) => !entry.startsWith('dist/')));
+});
+
+test('rejects a release package missing any required license file', (t) => {
+  const requiredFiles = ['LICENSE', 'NOTICE', '.vite/license.md'];
+
+  for (const missingFile of requiredFiles) {
+    const workspace = mkdtempSync(join(tmpdir(), 'hibro-package-test-'));
+    const sourceDirectory = join(workspace, 'dist');
+    mkdirSync(join(sourceDirectory, '.vite'), { recursive: true });
+    writeFileSync(join(sourceDirectory, 'manifest.json'), '{}\n');
+    for (const fileName of requiredFiles) {
+      if (fileName !== missingFile) {
+        writeFileSync(
+          join(sourceDirectory, fileName),
+          fileName === '.vite/license.md' ? licenseReport : 'License text\n',
+        );
+      }
+    }
+    t.after(() => rmSync(workspace, { recursive: true, force: true }));
+
+    const packageRun = spawnSync(
+      process.execPath,
+      [packageScript, 'v1.2.3', sourceDirectory, workspace],
+      { encoding: 'utf8' },
+    );
+
+    assert.notEqual(packageRun.status, 0, missingFile);
+    assert.ok(packageRun.stderr.includes(missingFile));
+    assert.equal(existsSync(join(workspace, 'hibro-v1.2.3.zip')), false);
+  }
 });
 
 test('rejects a tag that is unsafe for an artifact name', (t) => {

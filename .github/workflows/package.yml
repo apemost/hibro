@@ -8,11 +8,14 @@ on:
     paths:
       - ".github/workflows/package.yml"
       - ".gitignore"
+      - "LICENSE"
+      - "NOTICE"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".release-it.json"
       - "scripts/package-extension.mjs"
       - "test/package-extension.test.mjs"
+      - "vite.config.js"
 
 permissions:
   contents: read

@@ -61,6 +61,21 @@ test('extension loads with required permissions', async ({ extensionId }) => {
     'utf8',
   );
   expect(licenseReport).toMatch(/^## chart\.js - \d/m);
+
+  const projectLicense = readFileSync(
+    path.join(distDirectory, 'LICENSE'),
+    'utf8',
+  );
+  expect(projectLicense).toBe(
+    readFileSync(path.join(dirname, '..', 'LICENSE'), 'utf8'),
+  );
+  expect(projectLicense).toContain('Apache License');
+  expect(readFileSync(path.join(distDirectory, 'NOTICE'), 'utf8')).toContain(
+    'Copyright 2026 Andrew Lyu',
+  );
+  expect(readFileSync(path.join(distDirectory, 'NOTICE'), 'utf8')).toContain(
+    'Vercel AI Elements',
+  );
 });
 
 test('panel exposes keyboard-safe landmarks and drawer state', async ({

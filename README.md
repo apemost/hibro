@@ -32,3 +32,7 @@ Load `dist/` as an unpacked extension.
 - [Provider setup](docs/providers.md)
 - [Privacy policy](docs/privacy.md)
 - [Troubleshooting](docs/troubleshooting.md)
+
+## License
+
+Hibro is licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Andrew Lyu.

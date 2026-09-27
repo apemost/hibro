@@ -1,0 +1,9 @@
+Hibro
+Copyright 2026 Andrew Lyu
+
+This product includes components adapted from Vercel AI Elements:
+https://github.com/vercel/ai-elements
+Copyright 2023 Vercel, Inc.
+
+The components in src/components/ai-elements/ were modified for Hibro.
+Upstream license notice: https://github.com/vercel/ai-elements/blob/main/LICENSE

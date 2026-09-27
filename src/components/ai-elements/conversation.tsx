@@ -1,5 +1,7 @@
 'use client';
 
+// Adapted from Vercel AI Elements. Copyright 2023 Vercel, Inc.
+// Licensed under Apache-2.0; modified for Hibro.
 // Lightweight AI Elements conversation components with bottom-following and
 // transient scrollbar feedback.
 
