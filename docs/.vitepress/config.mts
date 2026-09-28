@@ -29,11 +29,8 @@ export default defineConfig({
           { text: 'Provider setup', link: '/providers' },
           { text: 'Privacy policy', link: '/privacy' },
           { text: 'Troubleshooting', link: '/troubleshooting' },
+          { text: 'Hibro skills', link: '/skills' },
         ],
-      },
-      {
-        text: 'More guides',
-        items: [{ text: 'Hibro skills', link: '/skills' }],
       },
     ],
     search: {
