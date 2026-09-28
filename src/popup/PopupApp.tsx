@@ -77,9 +77,8 @@ function PanelIcon() {
       strokeLinecap="round"
       aria-hidden="true"
     >
-      <path d="M3 6h18" />
-      <path d="M3 12h18" />
-      <path d="M3 18h18" />
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M15 3v18" />
     </svg>
   );
 }
