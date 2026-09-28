@@ -1,6 +1,6 @@
 # Hibro
 
-Hibro is an AI assistant for the Chrome and Edge side panel. It can answer questions about the current page and carry out browser tasks such as clicking, typing, scrolling, and navigation.
+Hibro is an open-source AI assistant that helps you read and interact with supported web pages. Ask questions and request page actions from the side panel, or translate page content from the toolbar.
 
 ## What it does
 
@@ -9,7 +9,6 @@ Hibro is an AI assistant for the Chrome and Edge side panel. It can answer quest
 - Translates a page in place, with each translation under the block it came from.
 - Saves recent conversations and supports site-specific skills.
 - Keeps settings and history in browser extension storage.
-- Supports English and Simplified Chinese.
 
 ## Quick start
 

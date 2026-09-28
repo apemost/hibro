@@ -13,6 +13,13 @@ export default defineConfig({
       { text: 'Features', link: '/features' },
       { text: 'Privacy', link: '/privacy' },
     ],
+    socialLinks: [
+      {
+        icon: 'github',
+        link: 'https://github.com/apemost/hibro',
+        ariaLabel: 'Hibro on GitHub',
+      },
+    ],
     sidebar: [
       {
         text: 'User guides',
