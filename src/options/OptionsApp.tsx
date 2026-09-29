@@ -15,6 +15,7 @@ import {
   writeProfiles,
 } from '@/shared/providers';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { SkillActionsMenu } from './SkillActionsMenu';
 import {
   DEFAULT_OPTIONS_LANGUAGE,
   OPTIONS_KEY,
@@ -82,7 +83,8 @@ export function OptionsApp() {
   const [skillState, setSkillState] = useState<SkillState>({});
   const [skillStatus, setSkillStatus] = useState<SkillStatus | null>(null);
 
-  // Skill editor form state.
+  // Shared skill viewer and editor state.
+  const [editReadOnly, setEditReadOnly] = useState(false);
   const [editId, setEditId] = useState('');
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -96,6 +98,7 @@ export function OptionsApp() {
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const newSkillRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -282,7 +285,8 @@ export function OptionsApp() {
 
   // Skill handlers
 
-  function openEditor(skill?: StoredUserSkill): void {
+  function openSkillDialog(skill?: StoredUserSkill, readOnly = false): void {
+    setEditReadOnly(readOnly);
     setEditId(skill?.id ?? '');
     setEditName(skill?.name ?? '');
     setEditDesc(skill?.description ?? '');
@@ -300,6 +304,7 @@ export function OptionsApp() {
 
   async function onSkillSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
+    if (editReadOnly) return;
     const match = editMatch
       .split('\n')
       .map((x) => x.trim())
@@ -336,6 +341,7 @@ export function OptionsApp() {
   async function deleteUser(id: string): Promise<void> {
     const list = users.filter((u) => u.id !== id);
     setUsers(list);
+    newSkillRef.current?.focus();
     await chrome.storage.local.set({ [USER_KEY]: list });
     flash(setSkillStatus, 'deleted');
   }
@@ -570,7 +576,12 @@ export function OptionsApp() {
         </p>
 
         <div className="skills-toolbar">
-          <button type="button" id="newSkillBtn" onClick={() => openEditor()}>
+          <button
+            type="button"
+            id="newSkillBtn"
+            ref={newSkillRef}
+            onClick={() => openSkillDialog()}
+          >
             {messages.skills.add}
           </button>
           <p id="skillStatus" role="status">
@@ -578,77 +589,85 @@ export function OptionsApp() {
           </p>
         </div>
 
-        <div id="builtinSkills">
+        <section
+          id="builtinSkills"
+          className="skill-group"
+          aria-labelledby="builtinSkillsTitle"
+        >
+          <h2 id="builtinSkillsTitle">{messages.skills.builtIn}</h2>
           {builtins.map((b) => (
             <div className="skill-row" key={b.id}>
+              <input
+                className="skill-toggle"
+                type="checkbox"
+                data-toggle={b.id}
+                aria-label={`${messages.common.enabled}: ${b.name}`}
+                checked={skillState[b.id]?.enabled !== false}
+                onChange={(e) => toggleBuiltin(b.id, e.currentTarget.checked)}
+              />
               <div className="skill-row-main">
-                <div className="skill-title">
-                  <strong>{b.name}</strong>
-                  <span className="badge builtin">
-                    {messages.skills.builtIn}
-                  </span>
-                </div>
-                <span className="skill-match">{b.description}</span>
-                <span className="skill-match">
-                  {b.match.length
-                    ? messages.skills.matches(b.match)
-                    : messages.skills.noPatterns}
-                </span>
+                <strong>{b.name}</strong>
+                <span className="skill-description">{b.description}</span>
               </div>
-              <div className="skill-row-actions">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    data-toggle={b.id}
-                    checked={skillState[b.id]?.enabled !== false}
-                    onChange={(e) =>
-                      toggleBuiltin(b.id, e.currentTarget.checked)
-                    }
-                  />{' '}
-                  {messages.common.enabled}
-                </label>
-              </div>
+              <SkillActionsMenu
+                label={messages.skills.actions(b.name)}
+                actions={[
+                  {
+                    label: messages.common.view,
+                    onSelect: () =>
+                      openSkillDialog(
+                        { ...b, enabled: skillState[b.id]?.enabled !== false },
+                        true,
+                      ),
+                  },
+                ]}
+              />
             </div>
           ))}
-        </div>
+        </section>
 
-        <div id="userSkillsList">
+        <section
+          id="userSkillsList"
+          className="skill-group"
+          aria-labelledby="userSkillsTitle"
+          hidden={users.length === 0}
+        >
+          <h2 id="userSkillsTitle">{messages.skills.mySkills}</h2>
           {users.map((s) => (
             <div className="skill-row" data-id={s.id} key={s.id}>
+              <input
+                className="skill-toggle"
+                type="checkbox"
+                data-toggle={s.id}
+                aria-label={`${messages.common.enabled}: ${s.name}`}
+                checked={s.enabled}
+                onChange={(e) => toggleUser(s.id, e.currentTarget.checked)}
+              />
               <div className="skill-row-main">
                 <strong>{s.name}</strong>
-                <span className="skill-match">
-                  {s.match.join('  ·  ') || messages.skills.noPatterns}
+                <span className="skill-description">
+                  {s.description.trim() ||
+                    s.match.join('  ·  ') ||
+                    messages.skills.noPatterns}
                 </span>
               </div>
-              <div className="skill-row-actions">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    data-toggle={s.id}
-                    checked={s.enabled}
-                    onChange={(e) => toggleUser(s.id, e.currentTarget.checked)}
-                  />{' '}
-                  {messages.common.enabled}
-                </label>
-                <button
-                  type="button"
-                  data-edit={s.id}
-                  onClick={() => openEditor(s)}
-                >
-                  {messages.common.edit}
-                </button>
-                <button
-                  type="button"
-                  data-delete={s.id}
-                  onClick={() => deleteUser(s.id)}
-                >
-                  {messages.common.delete}
-                </button>
-              </div>
+              <SkillActionsMenu
+                label={messages.skills.actions(s.name)}
+                actions={[
+                  {
+                    label: messages.common.edit,
+                    onSelect: () => openSkillDialog(s),
+                  },
+                  {
+                    label: messages.common.delete,
+                    onSelect: () => deleteUser(s.id),
+                    destructive: true,
+                  },
+                ]}
+              />
             </div>
           ))}
-        </div>
+        </section>
       </section>
 
       <dialog
@@ -749,12 +768,18 @@ export function OptionsApp() {
 
       <dialog
         id="skillDialog"
-        aria-label={messages.skills.editorLabel}
+        aria-label={
+          editReadOnly ? messages.skills.viewTitle : messages.skills.editorLabel
+        }
         ref={dialogRef}
       >
         <form id="skillForm" autoComplete="off" onSubmit={onSkillSubmit}>
           <h3 id="skillFormTitle">
-            {editId ? messages.skills.editTitle : messages.skills.newTitle}
+            {editReadOnly
+              ? messages.skills.viewTitle
+              : editId
+                ? messages.skills.editTitle
+                : messages.skills.newTitle}
           </h3>
           <input type="hidden" id="skillId" value={editId} readOnly />
           <label>
@@ -765,6 +790,7 @@ export function OptionsApp() {
               placeholder="github"
               required
               value={editName}
+              readOnly={editReadOnly}
               ref={nameRef}
               onChange={(e) => setEditName(e.target.value)}
             />
@@ -776,6 +802,7 @@ export function OptionsApp() {
               type="text"
               placeholder={messages.skills.descriptionPlaceholder}
               value={editDesc}
+              readOnly={editReadOnly}
               onChange={(e) => setEditDesc(e.target.value)}
             />
           </label>
@@ -786,6 +813,7 @@ export function OptionsApp() {
               rows={2}
               placeholder="https://github.com/*&#10;https://*.github.com/*"
               value={editMatch}
+              readOnly={editReadOnly}
               onChange={(e) => setEditMatch(e.target.value)}
             />
           </label>
@@ -793,29 +821,34 @@ export function OptionsApp() {
             {messages.skills.instructions}
             <textarea
               id="skillInstructions"
-              rows={4}
+              rows={editReadOnly ? 12 : 4}
               placeholder={messages.skills.instructionsPlaceholder}
               value={editInstructions}
+              readOnly={editReadOnly}
               onChange={(e) => setEditInstructions(e.target.value)}
             />
           </label>
-          <label className="check">
-            <input
-              id="skillEnabled"
-              type="checkbox"
-              checked={editEnabled}
-              onChange={(e) => setEditEnabled(e.currentTarget.checked)}
-            />{' '}
-            {messages.common.enabled}
-          </label>
+          {!editReadOnly && (
+            <label className="check">
+              <input
+                id="skillEnabled"
+                type="checkbox"
+                checked={editEnabled}
+                onChange={(e) => setEditEnabled(e.currentTarget.checked)}
+              />{' '}
+              {messages.common.enabled}
+            </label>
+          )}
           <div className="actions">
-            <button type="submit">{messages.common.save}</button>
+            {!editReadOnly && (
+              <button type="submit">{messages.common.save}</button>
+            )}
             <button
               id="skillCancel"
               type="button"
               onClick={() => dialogRef.current?.close()}
             >
-              {messages.common.cancel}
+              {editReadOnly ? messages.common.close : messages.common.cancel}
             </button>
           </div>
         </form>

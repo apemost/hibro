@@ -34,6 +34,8 @@ interface OptionsMessages {
   };
   common: {
     name: string;
+    view: string;
+    close: string;
     edit: string;
     delete: string;
     save: string;
@@ -67,8 +69,10 @@ interface OptionsMessages {
     hintAfterWildcard: string;
     add: string;
     builtIn: string;
-    matches: (patterns: string[]) => string;
+    mySkills: string;
     noPatterns: string;
+    viewTitle: string;
+    actions: (name: string) => string;
     status: Record<'created' | 'saved' | 'deleted', string>;
     editorLabel: string;
     editTitle: string;
@@ -99,6 +103,8 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
     },
     common: {
       name: 'Name',
+      view: 'View',
+      close: 'Close',
       edit: 'Edit',
       delete: 'Delete',
       save: 'Save',
@@ -144,9 +150,11 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
         'Skills teach the agent how a specific site works. A skill activates on pages whose URL matches one of its patterns (',
       hintAfterWildcard: ' matches anything).',
       add: '+ New skill',
-      builtIn: 'Built-in',
-      matches: (patterns) => `Matches: ${patterns.join('  ·  ')}`,
+      builtIn: 'Built-in skills',
+      mySkills: 'My skills',
       noPatterns: '(no patterns)',
+      viewTitle: 'View built-in skill',
+      actions: (name) => `Actions for ${name}`,
       status: {
         created: 'Created.',
         saved: 'Saved.',
@@ -178,6 +186,8 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
     },
     common: {
       name: '名称',
+      view: '查看',
+      close: '关闭',
       edit: '编辑',
       delete: '删除',
       save: '保存',
@@ -222,9 +232,11 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
         '技能告诉智能体如何使用特定网站。当页面 URL 与任一模式匹配时，相应技能会启用（',
       hintAfterWildcard: ' 可以匹配任意内容）。',
       add: '+ 新建技能',
-      builtIn: '内置',
-      matches: (patterns) => `匹配网址：${patterns.join('  ·  ')}`,
+      builtIn: '内置技能',
+      mySkills: '我的技能',
       noPatterns: '（无匹配模式）',
+      viewTitle: '查看内置技能',
+      actions: (name) => `${name} 的操作`,
       status: {
         created: '已创建。',
         saved: '已保存。',

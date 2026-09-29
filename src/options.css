@@ -274,20 +274,42 @@ label.check {
   font-weight: 400;
 }
 
+.skill-group h2 {
+  margin: 0 0 4px 28px;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+  color: light-dark(#59636e, #b6babf);
+}
+
+.skill-group + .skill-group {
+  margin-top: 12px;
+}
+
 .skill-row {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid rgba(128, 128, 128, 0.25);
+  padding: 16px 0;
+}
+
+.skill-row + .skill-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.18);
 }
 
 .skill-row-main {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Make provider and skill names read as row titles. */
@@ -296,22 +318,96 @@ label.check {
   font-size: 15px;
 }
 
+.skill-row strong {
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.skill-description {
+  font-size: 13px;
+  line-height: 20px;
+  color: light-dark(#59636e, #b6babf);
+}
+
 .skill-match {
   opacity: 0.7;
   font-size: 12px;
   word-break: break-all;
 }
 
-.skill-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.skill-toggle {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  align-self: flex-start;
   flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--focus);
 }
 
-.skill-row-actions button {
-  padding: 4px 10px;
+.skill-actions {
+  position: relative;
+  flex-shrink: 0;
+  /* Center the 32px button on the name's 20px first line. */
+  margin-top: -6px;
+}
+
+.skill-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+}
+
+.skill-menu-trigger[aria-expanded="true"] {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.skill-menu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 132px;
+  padding: 4px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+}
+
+.skill-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
   font-size: 13px;
+  text-align: left;
+}
+
+.skill-menu[data-placement="top"] {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.skill-menu button:focus-visible {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.skill-menu .destructive {
+  color: light-dark(#b91c1c, #fca5a5);
+}
+
+.skill-toggle:focus-visible,
+.skill-menu-trigger:focus-visible,
+.skill-menu button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 #skillStatus {

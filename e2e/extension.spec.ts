@@ -1093,12 +1093,17 @@ test('options page manages user skills', async ({
   await expect(page.locator('#newSkillBtn')).toBeHidden();
   await page.click('#tab-skills');
   await expect(page.locator('#newSkillBtn')).toBeVisible();
+  // Viewing a bundled skill must not leave the user editor read-only.
+  await page.getByRole('button', { name: 'Actions for arxiv' }).click();
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   // The skill form is behind a "New skill" button (dialog closed by default).
   await expect(page.locator('#skillName')).toBeHidden();
   await page.click('#newSkillBtn');
   await expect(page.locator('#skillName')).toBeVisible();
   // Create a skill via the form.
   await page.fill('#skillName', 'demo-ui');
+  await page.fill('#skillDesc', 'Summarize research pages.');
   await page.fill('#skillMatch', '*://127.0.0.1*/*');
   await page.fill('#skillInstructions', 'UI_TOKEN_99 do the thing');
   await page.click('#skillForm button[type="submit"]');
@@ -1115,6 +1120,72 @@ test('options page manages user skills', async ({
   expect(stored[0].instructions).toContain('UI_TOKEN_99');
   expect(stored[0].enabled).toBe(true);
 
+  const userRow = page.locator('#userSkillsList .skill-row');
+  await expect(
+    page.getByRole('heading', { name: 'My skills', exact: true }),
+  ).toBeVisible();
+  await expect(
+    userRow.getByText('Summarize research pages.', { exact: true }),
+  ).toBeVisible();
+  const checkboxBox = await userRow.getByRole('checkbox').boundingBox();
+  const nameBox = await userRow
+    .getByText('demo-ui', { exact: true })
+    .boundingBox();
+  expect(checkboxBox!.x + checkboxBox!.width).toBeLessThan(nameBox!.x);
+  expect(
+    Math.abs(
+      checkboxBox!.y +
+        checkboxBox!.height / 2 -
+        nameBox!.y -
+        nameBox!.height / 2,
+    ),
+  ).toBeLessThanOrEqual(1);
+
+  const actions = page.getByRole('button', {
+    name: 'Actions for demo-ui',
+    exact: true,
+  });
+  const actionsBox = await actions.boundingBox();
+  expect(
+    Math.abs(
+      actionsBox!.y + actionsBox!.height / 2 - nameBox!.y - nameBox!.height / 2,
+    ),
+  ).toBeLessThanOrEqual(1);
+  await actions.focus();
+  await actions.press('ArrowUp');
+  const edit = page.getByRole('menuitem', { name: 'Edit', exact: true });
+  const remove = page.getByRole('menuitem', { name: 'Delete', exact: true });
+  await expect(remove).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(edit).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(remove).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(edit).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(remove).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toBeHidden();
+  await expect(actions).toBeFocused();
+  await actions.click();
+  await page.getByRole('heading', { name: 'Hibro Settings' }).click();
+  await expect(page.getByRole('menu')).toBeHidden();
+  await actions.click();
+  await page.getByRole('button', { name: 'Actions for arxiv' }).click();
+  await expect(page.getByRole('menu')).toHaveCount(1);
+  await expect(page.getByRole('menuitem')).toHaveText(['View']);
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await actions.press('ArrowDown');
+  await expect(edit).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page
+    .getByRole('dialog', { name: 'Skill editor', exact: true })
+    .getByLabel('Name', { exact: true })
+    .fill('demo-ui-edited');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('#userSkillsList')).toContainText('demo-ui-edited');
+
   // Toggle it off via the row checkbox.
   await page.uncheck('#userSkillsList .skill-row input[data-toggle]');
   stored = await page.evaluate(
@@ -1124,8 +1195,12 @@ test('options page manages user skills', async ({
   expect(stored[0].enabled).toBe(false);
 
   // Delete it.
-  await page.click('#userSkillsList .skill-row button[data-delete]');
+  await page
+    .getByRole('button', { name: 'Actions for demo-ui-edited' })
+    .click();
+  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
   await expect(page.locator('#userSkillsList .skill-row')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '+ New skill' })).toBeFocused();
   stored = await page.evaluate(
     async () =>
       (await chrome.storage.local.get('hibroUserSkills')).hibroUserSkills,
@@ -1142,24 +1217,269 @@ test('built-in skills are listed on the options page', async ({
   await page.goto(`chrome-extension://${extensionId}/src/options.html`);
   await page.click('#tab-skills');
   const builtin = page.locator('#builtinSkills');
-  // The arXiv built-in is bundled (build-time glob + frontmatter parse) and
-  // rendered with its name, description, and match patterns.
+  // Bundled names and descriptions are grouped separately from user skills.
+  await expect(
+    builtin.getByRole('heading', { name: 'Built-in skills', exact: true }),
+  ).toBeVisible();
   await expect(builtin).toContainText('arxiv');
-  await expect(builtin).toContainText('arxiv.org');
-  // The added site skills also bundle (build-time glob + frontmatter parse)
-  // and render with their name and match patterns.
+  await expect(builtin).toContainText('Read and navigate arXiv papers');
   await expect(builtin).toContainText('Wikipedia');
-  await expect(builtin).toContainText('wikipedia.org');
+  await expect(builtin).toContainText('Read and navigate Wikipedia articles');
   await expect(builtin).toContainText('Hacker News');
-  await expect(builtin).toContainText('news.ycombinator.com');
+  await expect(builtin).toContainText('Read and navigate Hacker News threads');
   await expect(builtin).toContainText('V2EX');
-  await expect(builtin).toContainText('v2ex.com');
-  // Every built-in skill row carries a "Built-in" badge that user skills do not.
+  await expect(builtin).toContainText('Read and navigate V2EX topics');
   const rows = builtin.locator('.skill-row');
   const rowCount = await rows.count();
   expect(rowCount).toBeGreaterThanOrEqual(4);
-  expect(await builtin.locator('.badge.builtin').count()).toBe(rowCount);
   await page.close();
+});
+
+for (const language of ['en', 'zh-CN'] as const) {
+  test(`built-in skills can be viewed read-only in ${language}`, async ({
+    browserContext,
+    extensionId,
+  }) => {
+    const page = await browserContext.newPage();
+    await page.goto(`chrome-extension://${extensionId}/src/options.html`);
+    await page.getByRole('tab', { name: 'General', exact: true }).click();
+    await page.locator('#optionsLanguage').selectOption(language);
+    const chinese = language === 'zh-CN';
+    await page
+      .getByRole('tab', { name: chinese ? '智能体技能' : 'Agent skills' })
+      .click();
+    await expect(
+      page.getByRole('heading', {
+        name: chinese ? '内置技能' : 'Built-in skills',
+        exact: true,
+      }),
+    ).toBeVisible();
+    const rows = page.locator('#builtinSkills .skill-row');
+    const arxiv = rows.filter({
+      has: page.getByText('arxiv', { exact: true }),
+    });
+    const enabled = arxiv.getByRole('checkbox');
+    await enabled.uncheck();
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          async () =>
+            (await chrome.storage.local.get('hibroSkillState'))
+              .hibroSkillState?.['builtin:arxiv']?.enabled,
+        ),
+      )
+      .toBe(false);
+    const storageBefore = await page.evaluate(() =>
+      chrome.storage.local.get(['hibroSkillState', 'hibroUserSkills']),
+    );
+
+    for (const [name, directory] of [
+      ['arxiv', 'arxiv'],
+      ['Wikipedia', 'wikipedia'],
+      ['Hacker News', 'hacker-news'],
+      ['V2EX', 'v2ex'],
+    ]) {
+      const row = rows.filter({ has: page.getByText(name, { exact: true }) });
+      const checkboxBox = await row.getByRole('checkbox').boundingBox();
+      const nameBox = await row.getByText(name, { exact: true }).boundingBox();
+      expect(checkboxBox!.x + checkboxBox!.width).toBeLessThan(nameBox!.x);
+      expect(
+        Math.abs(
+          checkboxBox!.y +
+            checkboxBox!.height / 2 -
+            nameBox!.y -
+            nameBox!.height / 2,
+        ),
+      ).toBeLessThanOrEqual(1);
+      const actions = row.getByRole('button', {
+        name: chinese ? `${name} 的操作` : `Actions for ${name}`,
+        exact: true,
+      });
+      await expect(actions).toBeVisible();
+      const actionsBox = await actions.boundingBox();
+      expect(
+        Math.abs(
+          actionsBox!.y +
+            actionsBox!.height / 2 -
+            nameBox!.y -
+            nameBox!.height / 2,
+        ),
+      ).toBeLessThanOrEqual(1);
+      await expect(row.getByRole('button')).toHaveCount(1);
+      await expect(actions).toHaveAttribute('aria-expanded', 'false');
+      await actions.click();
+      await expect(actions).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('menuitem')).toHaveText([
+        chinese ? '查看' : 'View',
+      ]);
+      await page
+        .getByRole('menuitem', { name: chinese ? '查看' : 'View', exact: true })
+        .click();
+      const dialog = page.getByRole('dialog', {
+        name: chinese ? '查看内置技能' : 'View built-in skill',
+      });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByLabel(chinese ? '名称' : 'Name', { exact: true }),
+      ).toHaveValue(name);
+      const raw = readFileSync(
+        path.join(dirname, '..', 'skills', directory, 'SKILL.md'),
+        'utf8',
+      );
+      const body = raw.slice(raw.indexOf('\n---\n') + 5).trim();
+      await expect(
+        dialog.getByLabel(chinese ? '指令' : 'Instructions'),
+      ).toHaveValue(body);
+      const fields = dialog.getByRole('textbox');
+      await expect(fields).toHaveCount(4);
+      for (const field of await fields.all()) {
+        await expect(field).not.toBeEditable();
+        await expect(field).toBeEnabled();
+      }
+      await expect(dialog.getByRole('button')).toHaveCount(1);
+      if (name === 'arxiv') {
+        await expect(
+          dialog.getByLabel(chinese ? '描述' : 'Description'),
+        ).toHaveValue(
+          'Read and navigate arXiv papers (abstracts, PDF, search)',
+        );
+        await expect(
+          dialog.getByLabel(
+            chinese
+              ? 'URL 匹配模式（每行一个）'
+              : 'URL patterns (one per line)',
+          ),
+        ).toHaveValue('https://arxiv.org/*\nhttps://*.arxiv.org/*');
+        await dialog
+          .getByLabel(chinese ? '名称' : 'Name', { exact: true })
+          .press('Enter');
+        await expect(dialog).toBeVisible();
+        await page.keyboard.press('Escape');
+      } else {
+        await dialog
+          .getByRole('button', {
+            name: chinese ? '关闭' : 'Close',
+            exact: true,
+          })
+          .click();
+      }
+      await expect(dialog).toBeHidden();
+      await expect(actions).toBeFocused();
+      await expect(actions).toHaveAttribute('aria-expanded', 'false');
+      await actions.press('Enter');
+      await expect(page.getByRole('menu')).toBeVisible();
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('menu')).toBeHidden();
+    }
+
+    expect(
+      await page.evaluate(() =>
+        chrome.storage.local.get(['hibroSkillState', 'hibroUserSkills']),
+      ),
+    ).toEqual(storageBefore);
+    await enabled.check();
+    await page.close();
+  });
+}
+
+test('skill groups keep wrapped names and descriptions readable on narrow screens', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const page = await browserContext.newPage();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto(`chrome-extension://${extensionId}/src/options.html`);
+  const longName = 'Research notes for articles and technical documentation';
+  const description =
+    'Summarize the main points and preserve useful references for later reading.';
+  const original = await page.evaluate(() =>
+    chrome.storage.local.get('hibroUserSkills'),
+  );
+  try {
+    await page.evaluate(
+      async ({ name, description }) => {
+        await chrome.storage.local.set({
+          hibroUserSkills: [
+            {
+              id: 'user:layout-description',
+              name,
+              description,
+              match: ['https://example.com/*'],
+              enabled: true,
+            },
+            {
+              id: 'user:layout-fallback',
+              name: 'Without a description',
+              description: '',
+              match: ['https://example.org/*'],
+              enabled: false,
+            },
+          ],
+        });
+      },
+      { name: longName, description },
+    );
+    await page.reload();
+    for (const language of ['en', 'zh-CN']) {
+      await page.getByRole('tab', { name: /^(General|常规)$/ }).click();
+      await page.locator('#optionsLanguage').selectOption(language);
+      await page
+        .getByRole('tab', { name: /^(Agent skills|智能体技能)$/ })
+        .click();
+      const group = page.getByRole('region', {
+        name: language === 'en' ? 'My skills' : '我的技能',
+        exact: true,
+      });
+      await expect(group).toBeVisible();
+      const row = group
+        .locator('.skill-row')
+        .filter({ has: page.getByText(longName, { exact: true }) });
+      const name = row.getByText(longName, { exact: true });
+      await expect(row.getByText(description, { exact: true })).toBeVisible();
+      await expect(
+        group.getByText('https://example.org/*', { exact: true }),
+      ).toBeVisible();
+      const nameBox = await name.boundingBox();
+      expect(nameBox!.height).toBeGreaterThan(20);
+      const firstLine = await name.evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rect = range.getClientRects()[0];
+        return { y: rect.y, height: rect.height };
+      });
+      for (const control of [
+        row.getByRole('checkbox'),
+        row.getByRole('button'),
+      ]) {
+        const box = await control.boundingBox();
+        expect(
+          Math.abs(
+            box!.y + box!.height / 2 - firstLine.y - firstLine.height / 2,
+          ),
+        ).toBeLessThanOrEqual(1);
+      }
+      expect(await horizontalOverflow(page)).toEqual({
+        page: 0,
+        scrollers: [],
+      });
+      const actions = row.getByRole('button');
+      await actions.evaluate((button) => {
+        const bottom = button.getBoundingClientRect().bottom;
+        window.scrollBy(0, bottom - window.innerHeight + 48);
+      });
+      await actions.click();
+      const menuBox = await page.getByRole('menu').boundingBox();
+      expect(menuBox!.y).toBeGreaterThanOrEqual(0);
+      expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(720);
+      await page.keyboard.press('Escape');
+    }
+  } finally {
+    await page.evaluate(async (stored) => {
+      await chrome.storage.local.remove('hibroUserSkills');
+      await chrome.storage.local.set(stored);
+    }, original);
+    await page.close();
+  }
 });
 
 // Opens the fixture page and the side panel as tabs, leaving the fixture tab

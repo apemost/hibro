@@ -121,7 +121,7 @@ Conversation titles, messages, provider names, skill content, and tool output ke
 
 ## Site skills
 
-A skill gives the assistant instructions for a website. Hibro includes read-only skills for supported sites, and you can enable or disable them in Settings. You can also create your own skills.
+A skill gives the assistant instructions for a website. In Settings, Agent skills groups built-in skills and your own skills, showing each skill's name and description. Use the checkbox beside its name to enable or disable it. The ellipsis menu on the same line offers View for built-in skills and Edit or Delete for your own skills. Open View or Edit for the full URL patterns and instructions. A user skill without a description shows its URL patterns in the list instead.
 
 Enabled skills activate when their URL pattern matches the current page. Their instructions are included with the request to your selected provider. A skill does not run code by itself.
 
