@@ -132,7 +132,7 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     inlineImageInvalid: 'This image asset could not be displayed safely.',
     remoteImageBlocked: 'This remote image address is blocked.',
     remoteImageDisclosure:
-      'Loading contacts this host and reveals your IP address.',
+      'Loading sends this image address to the host and reveals your IP address. Check the address for private information.',
     loadRemoteImage: (host) => `Load image from ${host}`,
     loadOnce: 'Load once',
     imageLoading: 'Loading image…',
@@ -195,7 +195,8 @@ const PANEL_MESSAGES: Record<UiLanguage, PanelMessages> = {
     remoteImage: '远程图片',
     inlineImageInvalid: '无法安全显示此图片资产。',
     remoteImageBlocked: '此远程图片地址已被阻止。',
-    remoteImageDisclosure: '加载时会连接此主机，并向其暴露你的 IP 地址。',
+    remoteImageDisclosure:
+      '加载会将此图片地址发送给该主机，并暴露你的 IP 地址。请确认地址中没有私人信息。',
     loadRemoteImage: (host) => `从 ${host} 加载图片`,
     loadOnce: '仅加载一次',
     imageLoading: '正在加载图片…',

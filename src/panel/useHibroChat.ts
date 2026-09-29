@@ -16,9 +16,9 @@ import {
   readConversationState,
   renameConversationTitle,
   summarize,
+  updateConversations,
   upsertConversation,
   writeActiveConversation,
-  writeConversations,
 } from '@/shared/conversations';
 import { getActiveTab } from './activeTab';
 
@@ -292,6 +292,9 @@ export function useHibroChat() {
   const activeIdRef = useRef<string>(state.activeId);
   const hydratedRef = useRef<boolean>(state.hydrated);
   const itemsRef = useRef<StoredConversation[]>([]);
+  // A saved id missing from fresh storage was deleted or evicted, not a new chat.
+  const savedIdsRef = useRef(new Set<string>());
+  const deletingIdRef = useRef<string | null>(null);
   // User actions may win hydration before the initial stored items are ready.
   // Keep persistence gated separately so that early saves cannot replace them.
   const startupStorageReadyRef = useRef(false);
@@ -315,36 +318,17 @@ export function useHibroChat() {
     hydratedRef.current = state.hydrated;
   }, [state.hydrated]);
 
-  // Save immediately before a conversation change. Empty chats stay out of History.
-  const persistNow = useCallback(async () => {
-    if (!hydratedRef.current || !startupStorageReadyRef.current) return;
-    const messages = messagesRef.current;
-    const activeId = activeIdRef.current;
-    if (messages.length === 0) {
-      await writeActiveConversation(activeId);
-      return;
+  // Stop the current run before another conversation takes over the port.
+  const abortRun = useCallback(() => {
+    const port = portRef.current;
+    portRef.current = null;
+    try {
+      port?.postMessage({ type: 'stop' });
+      port?.disconnect();
+    } catch {
+      // Port is gone; the next connect() recreates it.
     }
-    const now = Date.now();
-    const existing = itemsRef.current.find(
-      (conversation) => conversation.id === activeId,
-    );
-    const conv: StoredConversation = {
-      id: activeId,
-      // Keep a manual title instead of deriving it again after every message.
-      title: existing?.title.trim() ? existing.title : deriveTitle(messages),
-      createdAt: now,
-      updatedAt: now,
-      messages,
-      // Omit an unknown page URL instead of storing undefined.
-      ...(lastUrlRef.current ? { lastUrl: lastUrlRef.current } : {}),
-    };
-    const items = upsertConversation(itemsRef.current, conv);
-    itemsRef.current = items;
-    setSummaries(summarize(items));
-    await Promise.all([
-      writeConversations(items),
-      writeActiveConversation(activeId),
-    ]);
+    dispatch({ type: 'idle' });
   }, []);
 
   // Cancel stale writes before switching or deleting a conversation.
@@ -355,10 +339,71 @@ export function useHibroChat() {
     }
   }, []);
 
+  const discardDeletedActive = useCallback(
+    (items: StoredConversation[]) => {
+      const id = activeIdRef.current;
+      if (
+        deletingIdRef.current === id ||
+        !savedIdsRef.current.has(id) ||
+        items.some((item) => item.id === id)
+      )
+        return;
+      abortRun();
+      cancelPendingSave();
+      const fresh = uid();
+      activeIdRef.current = fresh;
+      messagesRef.current = [];
+      lastUrlRef.current = undefined;
+      dispatch({ type: 'new-chat', activeId: fresh });
+    },
+    [abortRun, cancelPendingSave],
+  );
+
+  // Save immediately before a conversation change. Empty chats stay out of History.
+  const persistNow = useCallback(async () => {
+    if (!hydratedRef.current || !startupStorageReadyRef.current) return;
+    const messages = messagesRef.current;
+    const activeId = activeIdRef.current;
+    if (messages.length === 0) {
+      await writeActiveConversation(activeId);
+      return;
+    }
+    const lastUrl = lastUrlRef.current;
+    const items = await updateConversations((stored) => {
+      if (activeId !== activeIdRef.current) return stored;
+      const existing = stored.find(
+        (conversation) => conversation.id === activeId,
+      );
+      if (!existing && savedIdsRef.current.has(activeId)) {
+        discardDeletedActive(stored);
+        return stored;
+      }
+      const now = Date.now();
+      return upsertConversation(stored, {
+        id: activeId,
+        // Keep a manual title instead of deriving it again after every message.
+        title: existing?.title.trim() ? existing.title : deriveTitle(messages),
+        createdAt: now,
+        updatedAt: now,
+        messages,
+        // Omit an unknown page URL instead of storing undefined.
+        ...(lastUrl ? { lastUrl } : {}),
+      });
+    });
+    if (items.some((item) => item.id === activeId))
+      savedIdsRef.current.add(activeId);
+    itemsRef.current = items;
+    setSummaries(summarize(items));
+    if (activeId === activeIdRef.current) {
+      await writeActiveConversation(activeId);
+    }
+  }, [discardDeletedActive]);
+
   // Restore storage unless the user already started a conversation during load.
   useEffect(() => {
     void (async () => {
       const { items, activeId } = await readConversationState();
+      items.forEach((item) => savedIdsRef.current.add(item.id));
       itemsRef.current = items;
       setSummaries(summarize(items));
       startupStorageReadyRef.current = true;
@@ -407,7 +452,7 @@ export function useHibroChat() {
     };
   }, [persistNow]);
 
-  // Refresh History without replacing the active in-memory conversation.
+  // Refresh History and discard a deleted active thread, including its pending stream.
   useEffect(() => {
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
@@ -416,13 +461,15 @@ export function useHibroChat() {
       if (area !== 'local' || !changes[CONVERSATIONS_KEY]) return;
       void (async () => {
         const { items } = await readConversationState();
+        items.forEach((item) => savedIdsRef.current.add(item.id));
         itemsRef.current = items;
         setSummaries(summarize(items));
+        discardDeletedActive(items);
       })();
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
+  }, [discardDeletedActive]);
 
   // Adopt the target of the agent's own navigate tool as the conversation's
   // lastUrl once the call succeeds: the tab really is on that page then, so the
@@ -461,10 +508,12 @@ export function useHibroChat() {
     if (portRef.current) return portRef.current;
     const port = chrome.runtime.connect({ name: 'hibro-panel' });
     port.onMessage.addListener((event: PanelEvent) => {
+      if (portRef.current !== port) return;
       trackAgentNavigation(event);
       dispatch(event);
     });
     port.onDisconnect.addListener(() => {
+      if (portRef.current !== port) return;
       portRef.current = null;
       dispatch({ type: 'idle' });
     });
@@ -539,18 +588,6 @@ export function useHibroChat() {
     dispatch({ type: 'stop' });
   }, []);
 
-  // Stop the current run before another conversation takes over the port.
-  const abortRun = useCallback(() => {
-    try {
-      portRef.current?.postMessage({ type: 'stop' });
-      portRef.current?.disconnect();
-    } catch {
-      // Port is gone; the next connect() recreates it.
-    }
-    portRef.current = null;
-    dispatch({ type: 'idle' });
-  }, []);
-
   // Save the current thread and stop its request before opening a new one.
   const newChat = useCallback(async () => {
     if (transitioningRef.current) return;
@@ -607,11 +644,12 @@ export function useHibroChat() {
       try {
         cancelPendingSave();
         await persistNow();
-        const next = renameConversationTitle(itemsRef.current, id, rawTitle);
+        const next = await updateConversations((items) =>
+          renameConversationTitle(items, id, rawTitle),
+        );
         if (next === itemsRef.current) return;
         itemsRef.current = next;
         setSummaries(summarize(next));
-        await writeConversations(next);
       } finally {
         transitioningRef.current = false;
       }
@@ -624,19 +662,18 @@ export function useHibroChat() {
     async (id: string) => {
       if (transitioningRef.current) return;
       transitioningRef.current = true;
+      deletingIdRef.current = id;
       try {
         const deletingActive = id === activeIdRef.current;
         if (deletingActive) abortRun();
         cancelPendingSave();
         if (!deletingActive) await persistNow();
-        const { items } = await readConversationState();
-        const next = items.filter((c) => c.id !== id);
+        const next = await updateConversations((items) =>
+          items.filter((c) => c.id !== id),
+        );
         itemsRef.current = next;
         setSummaries(summarize(next));
-        if (id !== activeIdRef.current) {
-          await writeConversations(next);
-          return;
-        }
+        if (id !== activeIdRef.current) return;
         const target = next
           .slice()
           .sort((a, b) => b.updatedAt - a.updatedAt)[0];
@@ -650,22 +687,17 @@ export function useHibroChat() {
             messages: target.messages,
             activeId: target.id,
           });
-          await Promise.all([
-            writeConversations(next),
-            writeActiveConversation(target.id),
-          ]);
+          await writeActiveConversation(target.id);
         } else {
           const fresh = uid();
           lastUrlRef.current = undefined;
           activeIdRef.current = fresh;
           messagesRef.current = [];
           dispatch({ type: 'new-chat', activeId: fresh });
-          await Promise.all([
-            writeConversations(next),
-            writeActiveConversation(fresh),
-          ]);
+          await writeActiveConversation(fresh);
         }
       } finally {
+        deletingIdRef.current = null;
         transitioningRef.current = false;
       }
     },

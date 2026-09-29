@@ -1,5 +1,5 @@
 // Loads built-in and user skills, matches them to the current URL, and prepares
-// their instructions for the model. See docs/skills.md for the file format.
+// their instructions for the model. See skills/README.md for the file format.
 
 /** A skill available to the assistant for the current browser session. */
 export interface Skill {

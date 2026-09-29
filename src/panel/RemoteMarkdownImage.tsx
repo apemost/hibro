@@ -134,6 +134,7 @@ export function RemoteMarkdownImage(
         <>
           <figcaption className="image-asset-caption">
             <strong>{destination.host}</strong>
+            <span>{destination.url}</span>
             <span>{messages.remoteImageDisclosure}</span>
           </figcaption>
           {state === 'error' ? (

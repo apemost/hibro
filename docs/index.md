@@ -7,11 +7,13 @@ Start with [Getting started](getting-started.md) if you are installing Hibro for
 ## User guides
 
 - [Getting started](getting-started.md) covers installation and the first chat.
-- [Features](features.md) explains chat, page translation, page automation, history, skills, and rich answers.
+- [Features](features.md) explains chat, translation, page actions, history, and previews.
 - [Provider setup](providers.md) explains the supported provider types and required fields.
-- [Privacy policy](privacy.md) explains what stays in the browser and what is sent to your provider.
+- [Privacy policy](privacy.md) explains what is saved, what is shared, and how to delete your data.
 - [Troubleshooting](troubleshooting.md) covers common setup and page-access problems.
-- [Hibro skills](skills.md) explains the site skill format.
+- [Hibro skills](skills.md) explains how to use and create website instructions.
+
+For development setup, bug reports, and pull requests, see [Contributing on GitHub](https://github.com/apemost/hibro/blob/main/CONTRIBUTING.md).
 
 ## License
 

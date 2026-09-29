@@ -5,7 +5,7 @@ Hibro is an open-source AI assistant that helps you read and interact with suppo
 ## What it does
 
 - Works with OpenAI-compatible services, OpenAI, and Anthropic.
-- Streams Markdown answers with diagrams, charts, validated image assets, code, and safe HTML previews.
+- Streams Markdown answers with diagrams, charts, validated image assets, code, and sandboxed HTML previews.
 - Translates a page in place, with each translation under the block it came from.
 - Saves recent conversations and supports site-specific skills.
 - Keeps settings and history in browser extension storage.
@@ -14,14 +14,14 @@ Hibro is an open-source AI assistant that helps you read and interact with suppo
 
 Install [Hibro from the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije). Open Hibro from the browser toolbar, open the side panel from its menu, then add an AI provider from Settings. The selected model must support function calling.
 
-To build Hibro from source for local development:
+To build Hibro from source, use Node.js 24 and the pnpm version specified by `packageManager` in [package.json](package.json):
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 ```
 
-Load `dist/` as an unpacked extension.
+Load `dist/` as an unpacked extension in Chrome or Edge. See [Contributing](CONTRIBUTING.md) for development setup and checks.
 
 ## Documentation
 

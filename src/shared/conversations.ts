@@ -62,6 +62,18 @@ export async function writeConversations(
   await chrome.storage.local.set({ [CONVERSATIONS_KEY]: items });
 }
 
+/** Applies one list mutation to fresh storage while excluding other panel writers. */
+export async function updateConversations(
+  update: (items: StoredConversation[]) => StoredConversation[],
+): Promise<StoredConversation[]> {
+  return navigator.locks.request(CONVERSATIONS_KEY, async () => {
+    const { items } = await readConversationState();
+    const next = update(items);
+    if (next !== items) await writeConversations(next);
+    return next;
+  });
+}
+
 /** Stores the active conversation id, or clears it for an empty state. */
 export async function writeActiveConversation(
   id: string | null,

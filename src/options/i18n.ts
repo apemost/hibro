@@ -115,7 +115,7 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
       hint: 'Add one or more LLM providers, then pick the one the side panel uses.',
       privacyTitle: 'Before you connect',
       privacyDescription:
-        "Hibro keeps provider settings and recent conversations in this browser. When you chat, it sends your messages, page address, content it reads, and matching skill instructions directly to the active LLM provider. Your API key is used only to connect to that provider. The Hibro developer does not receive this data. The provider's privacy and retention terms apply.",
+        "Hibro keeps provider settings and recent conversations in this browser. Chat, page translation, and Explain send data to your active AI provider. This can include your messages, page address, content it reads, selected text, and matching skill instructions. Your API key is used only to connect to that provider. The Hibro developer does not receive this data. The provider's privacy and retention terms apply.",
       privacyConsent: 'I understand and agree to this data use.',
       add: '+ Add provider',
       empty: 'No providers yet. Add one to get started.',
@@ -198,7 +198,7 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
       hint: '添加一个或多个 LLM 服务商，然后选择侧边栏要使用的服务商。',
       privacyTitle: '连接前请了解',
       privacyDescription:
-        'Hibro 会把服务商配置和最近的对话保存在当前浏览器中。聊天时，它会把你的消息、页面地址、读取到的页面内容以及匹配的技能说明直接发送给当前 LLM 服务商。API 密钥仅用于连接该服务商。Hibro 开发者不会收到这些数据，服务商自身的隐私和数据保留条款仍然适用。',
+        'Hibro 会把服务商配置和最近的对话保存在当前浏览器中。聊天、网页翻译和解释选中文本会向当前 AI 服务商发送数据，可能包括你的消息、页面地址、读取到的页面内容、选中的文本和匹配的技能说明。API 密钥仅用于连接该服务商。Hibro 开发者不会收到这些数据，服务商自身的隐私和数据保留条款仍然适用。',
       privacyConsent: '我已了解并同意上述数据用途。',
       add: '+ 添加服务商',
       empty: '还没有服务商。添加一个即可开始使用。',

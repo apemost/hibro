@@ -319,6 +319,11 @@ function getOverview(): OverviewResponse {
   };
 }
 
+// Password controls remain addressable without exposing their existing value.
+function isPasswordInput(el: HTMLElement): boolean {
+  return el instanceof HTMLInputElement && el.type === 'password';
+}
+
 // Tag visible interactive elements and return them. Previous tags are cleared
 // first so ids are always fresh and contiguous for the caller. An optional
 // filter (case-insensitive substring over text/href/name/placeholder) narrows
@@ -336,10 +341,9 @@ function snapshotElements(filter?: string): SnapshotElement[] {
   for (const el of candidates) {
     if (!el.getClientRects().length) continue;
     const tag = el.tagName.toLowerCase();
-    const text = truncate(
-      el.innerText || (el as HTMLInputElement).value || '',
-      60,
-    );
+    const text = isPasswordInput(el)
+      ? ''
+      : truncate(el.innerText || (el as HTMLInputElement).value || '', 60);
     const name = el.getAttribute('name') || undefined;
     const placeholder = el.getAttribute('placeholder') || undefined;
     const href =
@@ -417,10 +421,13 @@ function elementDetail(id: number): ElementDetailResponse | null {
   const el = document.querySelector<HTMLElement>(`[${HIBRO_ID_ATTR}="${id}"]`);
   if (!el) return null;
   const rect = el.getBoundingClientRect();
+  const password = isPasswordInput(el);
   const attrs: Record<string, string> = {};
   let attrCount = 0;
   for (const attr of Array.from(el.attributes)) {
-    if (attr.name === HIBRO_ID_ATTR) continue;
+    if (attr.name === HIBRO_ID_ATTR || (password && attr.name === 'value')) {
+      continue;
+    }
     if (attrCount >= 20) break;
     attrs[attr.name] = truncate(attr.value, 120);
     attrCount++;
@@ -430,7 +437,10 @@ function elementDetail(id: number): ElementDetailResponse | null {
     tag: el.tagName.toLowerCase(),
     role: el.getAttribute('role') || '',
     text: truncate(el.innerText || '', 300),
-    value: 'value' in el ? String((el as HTMLInputElement).value ?? '') : '',
+    value:
+      !password && 'value' in el
+        ? String((el as HTMLInputElement).value ?? '')
+        : '',
     placeholder: el.getAttribute('placeholder') || '',
     href: el instanceof HTMLAnchorElement ? truncate(el.href, 200) : '',
     attrs,

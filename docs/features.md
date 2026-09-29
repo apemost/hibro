@@ -1,142 +1,78 @@
 # Features
 
-Hibro reads and operates the current page from a browser side panel. This page describes the behavior users can see. Maintainer notes stay with the source.
+Hibro helps you read and use the current web page from a browser side panel.
 
 ## Chat about a page
 
-Click the Hibro toolbar button and choose the side panel, then ask a question there. Hibro sends the page title, URL, and a small page overview with each request. It reads more of the page only when the task needs it.
+Open Hibro from the browser toolbar, choose the side panel, and ask a question. Each chat request sends your message, the page title, its address, and a brief overview to your selected AI provider. The model can ask to read more of the page.
 
-Answers stream into the conversation as they arrive. Hibro follows the language used by you and the page. While the model is working, the panel shows a short status or the latest reasoning lines above the input. Reasoning appears only in the temporary readout, not in the answer bubble.
+Answers appear as they arrive. Hibro uses your language and the page's language to guide its replies. Some models also provide reasoning, shown temporarily above the input.
 
-Hibro notices when a conversation moves to a different URL and asks the model to read the new page again. A page that changes without changing its URL may need a clear follow-up such as "read this page again."
+When you move to another page, Hibro tells the model that the address changed. If the page changes without a new address, ask Hibro to read it again.
 
-## Automate a page
+## Ask Hibro to act
 
-You can ask Hibro to:
+You can ask Hibro to click a button, fill in a field, scroll, follow a link, or open another page. Page reads and actions appear in expandable cards, including any errors.
 
-- Click links, buttons, and other controls.
-- Type into fields and press common keys.
-- Scroll the page or bring an element into view.
-- Open another URL.
-- Read visible text or the main page content.
+Use Stop to interrupt a request. Starting a new chat or switching conversations also stops it. Stop does not undo actions already taken. Review important changes before relying on them.
 
-Each action appears in a collapsible tool card, including failures. The model can use several tools in one request and then report what it did.
-
-Use Stop to interrupt a running request. Starting another chat or switching conversations also stops the current request so its output cannot appear in the wrong thread.
-
-Hibro limits the number of tool steps in one request. If a longer task reaches the limit, the answer says that the task may be incomplete. Send a follow-up to continue.
-
-Page questions and page actions both require a model that supports function calling.
-
-## The toolbar menu
-
-Clicking the Hibro toolbar button opens a small menu with the things you reach in one click:
-
-- Pick the language, then translate the page with the button beside it. Once the page is translated that button shows the original again, so one control does both.
-- Open Settings, or the side panel, from the two icons in the top right.
-
-The menu closes as soon as you click back into the page. A translation it started keeps running and keeps filling in the page.
+Long tasks may reach a limit on the number of actions. If Hibro says the task may be incomplete, send a follow-up to continue. Both page questions and actions need a model that supports tools; see [Provider setup](providers.md).
 
 ## Translate a page
 
-The toolbar menu renders the page in another language without hiding the original. Hibro collects the text blocks of the main content, translates them, and puts each translation directly under the block it came from, so the page reads as one source paragraph followed by its translation.
+Open the toolbar menu, choose a language, and click the translate button. Translations appear below the original text. Click the button again to show only the original. Translation continues if you close the menu.
 
-Translating sends the page text to your provider and writes the replies into the open tab. The site is not changed and nothing is saved: press the button again, or reload the tab, to get the original page back. [Privacy policy](privacy.md) covers what a translation sends.
+Hibro translates the main content, including paragraphs, headings, lists, and tables. It skips navigation, sidebars, footers, code blocks, and hidden text. Very long pages may be translated only in part.
 
-The tab keeps the translation it was given. Showing the original and then asking for the same language again brings that translation straight back, with no new request to your provider. A different language, a reloaded tab, or a page that replaces its own content needs a fresh translation.
+The target language follows your interface language until you choose another. You can change it in the toolbar menu or Settings under General. You can also ask in chat, such as "translate this page into Japanese," including languages outside the Settings list.
 
-What Hibro translates:
+Translation sends page text to your selected provider. The open tab remembers the result, so showing the same translation again needs no new request. Reloading or closing the page clears that copy. A different language or changed page content may require a new translation. See [translation privacy](privacy.md#page-translation) for details.
 
-- Paragraphs, headings, list items, table cells, quotes, and captions in the main content.
-- Not navigation, sidebars, page footers, code blocks, or text the page hides.
+## Conversations
 
-Long pages are translated up to a fixed budget. When the page is longer than that budget, the first part is translated and the rest is left alone.
+Hibro saves your 10 most recent conversations in the browser and restores the active one when you reopen the panel.
 
-Choose the target language in the toolbar menu or under the General tab in Settings; both set the same preference. It follows the interface language until you pick something else. You can also ask in chat, for example "translate this page" or "translate this page into Japanese", which reaches the same feature and accepts languages outside the Settings list.
-
-Translation uses your selected provider and requires a working provider profile, like any other request.
-
-## Conversations and input
-
-Hibro keeps the 10 most recent conversations in extension storage and restores the active one when the panel reopens.
-
-- Use the plus button in the top right to start a new chat.
-- Open History from the top left to switch, rename, or delete a conversation.
-- An empty new chat is not added to History until you send its first message.
+- Start a new chat with the plus button at the top right.
+- Open History at the top left to switch, rename, or delete a conversation.
+- An empty chat appears in History after you send its first message.
 - Deleting the active conversation opens the most recent remaining one.
 
-The input remembers sent messages across saved conversations. Press ArrowUp from an empty input, or from the start of the current text, to recall older messages. ArrowDown moves forward and restores the draft after the newest entry.
+Deleting a conversation also clears it from other open Hibro panels and stops any request running in that conversation.
 
-The conversation log is keyboard focusable, and controls in the closed History drawer stay out of keyboard navigation.
+Press ArrowUp in an empty input, or at the start of its text, to recall sent messages. ArrowDown moves forward and eventually restores your draft.
 
-Drag the handle above the input to make it taller, up to 400 pixels. The handle also supports ArrowUp, ArrowDown, Home, and End from the keyboard.
+Drag the handle above the input to resize it, or focus the handle and use ArrowUp, ArrowDown, Home, or End. Long messages can be expanded with Show more and collapsed with Show less. Wide code and action results scroll within their own areas.
 
-User messages taller than 400 pixels start collapsed. Use Show more and Show less to expand or collapse them. Wide code and tool output scroll inside their own blocks instead of widening the whole panel.
+## Answers, previews, and copying
 
-## Answers and message actions
+Answers can include formatted text, math, diagrams, charts, and HTML previews. Charts support bar, line, pie, and scatter plots and follow your system's light or dark theme.
 
-Assistant answers support regular Markdown, CJK text, and math. Fenced blocks can also render:
+HTML starts in Code view. Choose Preview to see a static version. Preview links and forms do not work, and previews cannot run scripts, open popups, or load external content. The original HTML remains available in Code view. Invalid chart data is shown as code.
 
-- Mermaid diagrams.
-- Data-only JSON charts using bar, line, pie, or scatter datasets.
-- HTML with a Code and Preview switch.
+Click a finished message to open its copy action. Select text to copy just that part or choose Explain. Explain sends the selection to your active AI provider.
 
-HTML previews are static. Scripts, forms, popups, and network requests are blocked inside the preview. Code is always available as the default view.
+## Images
 
-Charts follow the system light or dark color scheme, including changes while the panel remains open.
+Hibro can display images returned directly by a provider when the provider and model support this response type. PNG, JPEG, and WebP images up to 5 MiB are supported and saved with the conversation.
 
-Hibro treats image data and image addresses differently:
+Image links in answers stay unloaded until you choose Load once. Review the full address shown on the card first: loading sends that address to the website and reveals your IP address. Downloaded images are not saved in conversation history, so you must load them again when you reopen it.
 
-- A compatible provider/model can return an inline PNG, JPEG, or WebP image asset through the structured response stream. Hibro validates assets up to 5 MiB and displays them from a temporary local address. The current provider adapter and model must actually support this output; ordinary image links in generated text do not become trusted assets.
-- An image address in model-generated Markdown starts as an inactive card that shows the destination host. Hibro makes no request until you choose Load once for that individual image. The card warns that loading contacts the host and reveals your IP address.
-- A one-time load accepts only a credential-free HTTPS address with a public-looking host. The request omits browser credentials and the referrer, rejects redirects, and accepts only a matching PNG, JPEG, or WebP response up to 5 MiB. The image is then displayed from a temporary local address that is removed with the message.
+Remote images must use HTTPS and meet the same file limits. Some addresses and redirects are blocked. Diagrams, charts, and HTML previews cannot load remote images. See [image privacy](privacy.md#remote-image-requests) for the restrictions and their limits.
 
-Literal IP addresses, localhost and special-use hostnames, non-HTTPS addresses, credential-bearing addresses, redirects, SVG, mismatched content, and oversized responses are blocked. A browser-only extension cannot prove before connecting that a public-looking hostname will not resolve or rebind to a private address, so only load a host you recognize.
+## Providers and language
 
-Mermaid image nodes remain blocked, chart blocks reject remote image addresses, and HTML Preview remains networkless. These renderers cannot use the one-time Markdown image loader as a parallel network path.
+Open Settings from the gear in the panel or toolbar menu. You can save several provider profiles and switch between them in Settings or beside the chat input. The next request uses the selected provider. See [Provider setup](providers.md) for supported services and required fields.
 
-Long code blocks show up to 25 lines before scrolling. Invalid chart or HTML content falls back to readable code instead of breaking the conversation.
-
-Click a finished message to copy the whole message. Select text inside a message to copy only the selection or ask Hibro to explain it. Explain sends the selected text to the active AI provider as a separate request.
-
-## Providers and Settings
-
-Open Settings from the gear at the lower left of the panel. You can save more than one named provider profile and choose which one Hibro uses.
-
-Provider profiles are encrypted before Hibro saves them in the browser. When you upgrade from an older release, Hibro encrypts existing plaintext profiles automatically. A previously saved single provider also becomes an active profile, so you do not need to enter its credentials again.
-
-Supported provider types are:
-
-- OpenAI-compatible, for services that use the Chat Completions format.
-- OpenAI.
-- Anthropic.
-
-OpenAI and Anthropic can use their standard endpoints without a custom base URL. OpenAI-compatible profiles require a base URL.
-
-Switching the active provider in Settings updates the side panel. You can also switch providers from the picker beside the chat input. The next request uses the new provider.
-
-Settings and the side panel support English and Simplified Chinese. Choose the language under the General tab in Settings. Open extension pages update at once and remember the choice.
-
-Conversation titles, messages, provider names, skill content, and tool output keep their original text.
+Settings and the side panel support English and Simplified Chinese. Choose the interface language under General in Settings. Existing conversations, provider names, skill instructions, and action results keep their original text.
 
 ## Site skills
 
-A skill gives the assistant instructions for a website. In Settings, Agent skills groups built-in skills and your own skills, showing each skill's name and description. Use the checkbox beside its name to enable or disable it. The ellipsis menu on the same line offers View for built-in skills and Edit or Delete for your own skills. Open View or Edit for the full URL patterns and instructions. A user skill without a description shows its URL patterns in the list instead.
+Skills give Hibro instructions for particular websites. In Settings, open Agent skills and use the checkbox beside a skill to enable or disable it. The ellipsis menu offers View for built-in skills and Edit or Delete for your own skills.
 
-Enabled skills activate when their URL pattern matches the current page. Their instructions are included with the request to your selected provider. A skill does not run code by itself.
+New skills start enabled, and editing keeps their current on/off setting. Enabled skills apply when the page address matches their rules. Their instructions are sent to your selected provider. See [Hibro skills](skills.md) to create or manage them.
 
-See the [skill format guide](skills.md) to write a built-in skill.
+## Page access and privacy
 
-## Restricted pages
+Browser settings pages, extension stores, and other protected pages cannot be read or controlled. If a regular page cannot connect, refresh it and retry. See [Troubleshooting](troubleshooting.md) for other connection and action errors.
 
-If a regular page does not have Hibro's current page reader, Hibro loads it and retries without refreshing the page. This can happen when the tab was open before Hibro was installed or reloaded.
-
-If a page reader is present but a large read takes too long, Hibro reports the timeout without loading a second reader or repeating the read.
-
-Browsers do not allow extensions to inspect or automate some pages, including browser settings pages and the extension store. Hibro shows an error card instead of trying to restore access to those pages.
-
-## Data and permissions
-
-Hibro needs access to the current tab and page so it can read content and perform the actions you request. Provider settings are encrypted, and conversation history stays in the browser. Chat context and page content are sent directly to the provider when needed. The Hibro developer does not receive this data.
-
-Read the [Privacy policy](privacy.md) for more detail about stored and transmitted data.
+Provider settings and recent conversations are saved locally. Messages and page content are sent directly to your chosen provider. The [Privacy policy](privacy.md) explains storage, sharing, deletion, and browser permissions.

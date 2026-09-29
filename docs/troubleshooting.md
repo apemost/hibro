@@ -1,47 +1,47 @@
 # Troubleshooting
 
-## The panel asks for an AI provider
+## Hibro asks for a provider
 
-Open Settings from the gear in the lower left, add a provider profile, and make it active. OpenAI-compatible profiles require a base URL.
+Open Settings, add a provider profile, and make it active. Check its model name, API key, and server address. OpenAI-compatible profiles require a base URL. See [Provider setup](providers.md).
 
-If Hibro asks you to accept the provider data-use notice, select **Open provider settings** in the error message. Settings opens on the LLM Providers tab, where you can review and accept the notice.
+If Hibro asks you to accept the data-use notice, choose Open provider settings in the error message. Review and accept the notice before retrying.
 
-## Settings cannot unlock saved providers
+## Saved providers cannot be opened
 
-Hibro leaves the saved data unchanged when it cannot decrypt provider settings. Reload the extension once in case the browser storage was temporarily unavailable.
+Reload the extension and try again. Hibro leaves unreadable settings unchanged.
 
-If extension data was cleared or damaged, the encryption key may be gone. The providers then need to be set up again after clearing Hibro's local extension data. This also removes local conversations, skills, and settings, so use it only when you no longer need that data.
+If browser data was cleared or damaged, the key needed to read saved providers may be missing. Resetting Hibro's local extension data lets you set up providers again, but also deletes local conversations, skills, and settings. Only reset it when you no longer need that data.
 
-## The model answers without reading or acting on the page
+## The model does not read or act on the page
 
-Use a model that supports function calling. Hibro uses tools for page questions and page actions, so a chat-only model is not enough.
+Choose a model that supports tools, also called function calling. Hibro needs this for both page questions and actions. Also check that the model name, API key, and base URL match your provider's instructions.
 
-Also check that the model name, API key, and base URL match the provider's requirements.
+## Hibro cannot connect to a page
 
-## Hibro cannot connect to the page
+Refresh the page and retry. Hibro usually reconnects automatically, including to tabs opened before the extension was installed or reloaded.
 
-Hibro normally restores its page connection automatically, including for tabs that were already open when the extension was installed or reloaded. If a regular web page still does not connect, refresh that tab and try again.
+If a large page takes too long to read, ask about a smaller section. Browser settings pages, extension stores, and other protected pages cannot be read or controlled.
 
-Very large pages can take too long to read. If a read times out, retry with a request that names a smaller section of the page.
+## Only part of a page is translated
 
-Hibro cannot inspect browser settings pages, the browser's extension store, or other protected pages. Open a regular `http://` or `https://` page instead.
+There is a limit on how much text Hibro translates in one run. On very long pages, the remaining text stays in its original language. Navigation, footers, code blocks, and hidden text are skipped.
 
-## Only part of a long page is translated
+## An action reports a debugger error
 
-Hibro translates up to a fixed amount of text in one run. On a page longer than that, the first part is translated and the rest is left in its original language.
+Close browser DevTools and pause other extensions that may be controlling the same tab, then retry. Another debugger connection can prevent Hibro from using the tab.
 
-## A page action reports a debugger error
+## A task stops before it finishes
 
-Close browser DevTools and pause other extensions that may be debugging the same tab, then retry. Chrome allows only one debugger attachment to a target at a time.
+Hibro limits the number of actions in one request. If it says the task may be incomplete, send a follow-up asking it to continue.
 
-## A long task stops before it is finished
+## The answer uses old page content
 
-Hibro limits the number of tool steps in one request. If the answer says the task may be incomplete, send a follow-up that asks it to continue from the current page.
-
-## The page changed but the answer uses old context
-
-Hibro detects URL changes. Some sites replace their content without changing the URL. Ask Hibro to read the page again, or start a new chat.
+Ask Hibro to read the page again, or start a new chat. Some websites change content without changing the page address, so Hibro may still have earlier context.
 
 ## An action is not what you expected
 
-Use Stop to interrupt the current request. Web pages can contain instructions that influence a model, so review important changes before relying on them.
+Use Stop to interrupt the request. It does not undo completed actions. Page content can influence the model, so review important changes before relying on them.
+
+## Report a problem
+
+Include your Hibro and browser versions, steps to reproduce, and any error message in a [GitHub issue](https://github.com/apemost/hibro/issues). Remove API keys and private information from text, links, logs, and screenshots before posting.

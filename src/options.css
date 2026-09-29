@@ -275,11 +275,11 @@ label.check {
 }
 
 .skill-group h2 {
-  margin: 0 0 4px 28px;
-  font-size: 12px;
-  line-height: 20px;
-  font-weight: 500;
-  color: light-dark(#59636e, #b6babf);
+  margin: 0 0 4px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  text-align: left;
 }
 
 .skill-group + .skill-group {

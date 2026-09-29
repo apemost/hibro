@@ -40,6 +40,19 @@ type OptionsTab = 'general' | 'config' | 'skills';
 const USER_KEY = 'hibroUserSkills';
 const STATE_KEY = 'hibroSkillState';
 
+// Read and write under one origin-wide lock so Settings pages cannot overwrite
+// unrelated user skills, even when their changes arrive at the same time.
+async function updateUserSkills(
+  update: (skills: StoredUserSkill[]) => StoredUserSkill[],
+): Promise<void> {
+  await navigator.locks.request(USER_KEY, async () => {
+    const stored = (await chrome.storage.local.get(USER_KEY))[USER_KEY] as
+      | StoredUserSkill[]
+      | undefined;
+    await chrome.storage.local.set({ [USER_KEY]: update(stored ?? []) });
+  });
+}
+
 const PROVIDER_TYPES: { value: ProviderType; label: string }[] = [
   { value: 'openai-compatible', label: 'OpenAI-compatible' },
   { value: 'openai', label: 'OpenAI' },
@@ -90,7 +103,6 @@ export function OptionsApp() {
   const [editDesc, setEditDesc] = useState('');
   const [editMatch, setEditMatch] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
-  const [editEnabled, setEditEnabled] = useState(true);
 
   // Defaults to the interface language until the stored preference loads.
   const [translationTarget, setTranslationTarget] =
@@ -105,6 +117,8 @@ export function OptionsApp() {
     let providerLoad = 0;
     let languageStorageVersion = 0;
     let consentStorageVersion = 0;
+    let userSkillsVersion = 0;
+    let builtinStateVersion = 0;
 
     const refreshProviders = async () => {
       const load = ++providerLoad;
@@ -121,7 +135,7 @@ export function OptionsApp() {
       }
     };
 
-    // Apply provider changes made by another open extension page.
+    // Apply settings changes made by another open extension page.
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
       area: string,
@@ -138,6 +152,18 @@ export function OptionsApp() {
         setLanguage(resolveOptionsLanguage(changes[OPTIONS_KEY].newValue));
         setTranslationTarget(
           resolveOptionsTranslationTarget(changes[OPTIONS_KEY].newValue),
+        );
+      }
+      if (changes[USER_KEY]) {
+        userSkillsVersion += 1;
+        setUsers(
+          (changes[USER_KEY].newValue as StoredUserSkill[] | undefined) ?? [],
+        );
+      }
+      if (changes[STATE_KEY]) {
+        builtinStateVersion += 1;
+        setSkillState(
+          (changes[STATE_KEY].newValue as SkillState | undefined) ?? {},
         );
       }
     };
@@ -158,18 +184,15 @@ export function OptionsApp() {
       if (alive && languageStorageVersion === languageReadVersion)
         setTranslationTarget(stored);
     });
-    void (async () => {
-      const us = (await chrome.storage.local.get(USER_KEY))[USER_KEY] as
-        | StoredUserSkill[]
-        | undefined;
+    const userSkillsReadVersion = userSkillsVersion;
+    const builtinStateReadVersion = builtinStateVersion;
+    void chrome.storage.local.get([USER_KEY, STATE_KEY]).then((stored) => {
       if (!alive) return;
-      setUsers(us ?? []);
-      const st = (await chrome.storage.local.get(STATE_KEY))[STATE_KEY] as
-        | SkillState
-        | undefined;
-      if (!alive) return;
-      setSkillState(st ?? {});
-    })();
+      if (userSkillsVersion === userSkillsReadVersion)
+        setUsers((stored[USER_KEY] as StoredUserSkill[] | undefined) ?? []);
+      if (builtinStateVersion === builtinStateReadVersion)
+        setSkillState((stored[STATE_KEY] as SkillState | undefined) ?? {});
+    });
 
     return () => {
       alive = false;
@@ -292,7 +315,6 @@ export function OptionsApp() {
     setEditDesc(skill?.description ?? '');
     setEditMatch(skill?.match.join('\n') ?? '');
     setEditInstructions(skill?.instructions ?? '');
-    setEditEnabled(skill?.enabled ?? true);
     dialogRef.current?.showModal();
     // Do not steal focus when the user already reached another field.
     requestAnimationFrame(() => {
@@ -316,40 +338,43 @@ export function OptionsApp() {
       description: editDesc.trim(),
       match,
       instructions: editInstructions.trim() || undefined,
-      enabled: editEnabled,
+      enabled: true,
     };
-    const list =
-      (await ((
-        await chrome.storage.local.get(USER_KEY)
-      )[USER_KEY] as StoredUserSkill[] | undefined)) ?? [];
-    const idx = list.findIndex((x) => x.id === id);
-    const created = idx < 0;
-    if (idx >= 0) list[idx] = skill;
-    else list.push(skill);
-    await chrome.storage.local.set({ [USER_KEY]: list });
-    setUsers(list);
+    let created = false;
+    await updateUserSkills((list) => {
+      created = !list.some((x) => x.id === id);
+      // New skills start enabled; editing preserves the current list toggle.
+      return created
+        ? [...list, skill]
+        : list.map((x) => (x.id === id ? { ...skill, enabled: x.enabled } : x));
+    });
     dialogRef.current?.close();
     flash(setSkillStatus, created ? 'created' : 'saved');
   }
 
   async function toggleUser(id: string, enabled: boolean): Promise<void> {
-    const list = users.map((u) => (u.id === id ? { ...u, enabled } : u));
-    setUsers(list);
-    await chrome.storage.local.set({ [USER_KEY]: list });
+    setUsers((list) => list.map((u) => (u.id === id ? { ...u, enabled } : u)));
+    await updateUserSkills((list) =>
+      list.map((u) => (u.id === id ? { ...u, enabled } : u)),
+    );
   }
 
   async function deleteUser(id: string): Promise<void> {
-    const list = users.filter((u) => u.id !== id);
-    setUsers(list);
     newSkillRef.current?.focus();
-    await chrome.storage.local.set({ [USER_KEY]: list });
+    await updateUserSkills((list) => list.filter((u) => u.id !== id));
     flash(setSkillStatus, 'deleted');
   }
 
   async function toggleBuiltin(id: string, enabled: boolean): Promise<void> {
-    const next = { ...skillState, [id]: { enabled } };
-    setSkillState(next);
-    await chrome.storage.local.set({ [STATE_KEY]: next });
+    setSkillState((current) => ({ ...current, [id]: { enabled } }));
+    await navigator.locks.request(STATE_KEY, async () => {
+      const current = (await chrome.storage.local.get(STATE_KEY))[STATE_KEY] as
+        | SkillState
+        | undefined;
+      await chrome.storage.local.set({
+        [STATE_KEY]: { ...current, [id]: { enabled } },
+      });
+    });
   }
 
   return (
@@ -828,17 +853,6 @@ export function OptionsApp() {
               onChange={(e) => setEditInstructions(e.target.value)}
             />
           </label>
-          {!editReadOnly && (
-            <label className="check">
-              <input
-                id="skillEnabled"
-                type="checkbox"
-                checked={editEnabled}
-                onChange={(e) => setEditEnabled(e.currentTarget.checked)}
-              />{' '}
-              {messages.common.enabled}
-            </label>
-          )}
           <div className="actions">
             {!editReadOnly && (
               <button type="submit">{messages.common.save}</button>

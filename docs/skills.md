@@ -1,35 +1,33 @@
 # Hibro skills
 
-A skill gives Hibro instructions for a website. Hibro follows the open [Agent Skills](https://agentskills.io) format and adds a `match` field for page URLs.
+A skill gives Hibro instructions for a website, such as how to find an article or which details to include in a summary. Enabled skills apply when the page address matches their rules. Their instructions are sent to your selected AI provider.
 
-Each skill is one `SKILL.md` file:
+## Use built-in skills
 
-```markdown
----
-name: example
-description: How to operate example.com
-match:
-  - https://example.com/*
-  - https://*.example.com/*
----
+Open Agent skills in Settings. Use the checkbox beside a skill to turn it on or off.
 
-The search box is `input#q`. Submit with `button#go`.
-```
+Open its ellipsis menu and choose View to read or copy the instructions and website rules. Built-in skills cannot be edited, but you can copy their content into a skill of your own. You can still view a skill when it is disabled.
 
-The frontmatter contains:
+## Create your own skill
 
-- `name`: a short skill name.
-- `description`: what the skill helps the assistant do.
-- `match`: one or more URL patterns. `*` matches any sequence of characters.
+1. In Agent skills, choose New skill.
+2. Enter a name and, optionally, a short description.
+3. Add the website rules under URL patterns, one per line.
+4. Write the instructions and save.
 
-The Markdown body contains the instructions sent to the model on matching pages. Keep it focused on facts and steps the model cannot reliably discover from the page.
+New skills start enabled. Editing a skill keeps its current on/off setting.
 
-## Built-in and user skills
+For example, use `https://example.com/*` for the website rule and "Summarize each article in five bullet points and include its source links" for the instructions.
 
-Settings groups skills under Built-in skills and My skills. Each row shows the name and description, with its checkbox and ellipsis menu aligned with the name. URL patterns are available in the View or Edit dialog; user skills without a description show their patterns in the list as a fallback.
+Your skills appear under My skills. Use the checkbox to turn one on or off, or its ellipsis menu to Edit or Delete it. Changes also appear in other open Settings pages. Skills stay in your browser and are not synced to other devices by Hibro.
 
-Built-in skills live in `skills/<name>/SKILL.md` and are bundled with the extension. In Settings, open Agent skills, open a skill's ellipsis menu, and choose View to inspect its name, description, URL patterns, and full instructions. You can select and copy the content, but cannot edit it. The checkbox on the left enables or disables the skill; disabled skills remain available to view.
+## Website rules
 
-User skills are created and managed in Settings. Their ellipsis menu offers Edit and Delete, and their left checkbox controls whether they are enabled. They use the same fields and stay in extension storage.
+A URL pattern tells Hibro where a skill applies. `*` stands for any number of characters:
 
-Hibro activates every enabled skill whose URL pattern matches the active page. The matching instructions are included in the request to the selected AI provider. Skills do not run code by themselves.
+- `https://example.com/*` matches addresses on `example.com`.
+- `https://*.example.com/*` matches its subdomains. Add both rules if you need both.
+
+Matching uses the full address and is case-sensitive. A skill with no matching rule stays inactive. If several enabled skills match, Hibro uses all of them.
+
+Skills provide instructions; they do not run scripts or give Hibro extra permissions. To contribute a built-in skill, see the repository's [Agent Skills guide](https://github.com/apemost/hibro/blob/main/skills/README.md).

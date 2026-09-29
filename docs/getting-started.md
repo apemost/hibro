@@ -7,9 +7,9 @@ Hibro is available from the Chrome Web Store.
 You need:
 
 - Chrome or Edge.
-- An API key and a model that supports function calling.
+- An API key for an AI service and a model that supports tools, also called function calling.
 
-Hibro uses model tools for page questions as well as page actions. A chat-only model will not work reliably.
+Tool support is needed for both page questions and page actions.
 
 ## Install from the Chrome Web Store
 
@@ -23,9 +23,10 @@ Click the Hibro toolbar button to open its menu. From there you can translate th
 
 1. Select the Settings gear at the lower left of the panel.
 2. Open LLM providers.
-3. Choose Add provider.
-4. Enter a name, provider type, API key, and model. OpenAI-compatible profiles also need a base URL.
-5. Save the profile and make sure it is active.
+3. Review and accept the provider data-use notice.
+4. Choose Add provider.
+5. Enter a name, provider type, API key, and model. OpenAI-compatible profiles also need a base URL.
+6. Save the profile and make sure it is active.
 
 See [Provider setup](providers.md) for the supported profile types.
 
@@ -39,6 +40,6 @@ Then try a visible page action:
 
 > Scroll to the next section.
 
-Hibro shows page reads and actions as tool cards. Use Stop if you need to interrupt the request.
+Page reads and actions appear in expandable cards. Use Stop to interrupt the request.
 
 Browser settings pages and extension stores do not allow this kind of page access. See [Troubleshooting](troubleshooting.md) if the panel cannot connect to a normal page.

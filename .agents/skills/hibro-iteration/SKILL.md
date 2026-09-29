@@ -28,24 +28,27 @@ Doc map:
 
 - `AGENTS.md`: agent/maintainer conventions, guardrails, and terse pointers to `docs/`. Update it when the tech stack, commands, structure, or conventions change.
 - `README.md`: user-facing pitch and quick start. Nothing else belongs there.
+- `CONTRIBUTING.md`: development setup, issue reports, pull requests, and contributor checks.
 - `docs/index.md`: public documentation index and user-oriented navigation.
-- `docs/features.md`: community-facing feature behavior and messaging protocols. Update it in the same change that alters the behavior it documents.
+- `docs/features.md`: user-visible feature behavior. Keep implementation protocols in the source; update this guide in the same change that alters the behavior it documents.
 - `docs/getting-started.md`: installation and first use.
 - `docs/providers.md`: provider profile requirements and selection.
 - `docs/privacy.md`: local storage, provider requests, and permissions.
-- `docs/skills.md`: user-facing Skill format and behavior.
+- `docs/skills.md`: using and creating skills in Settings.
+- `skills/README.md`: bundled skill file format and contributor guidance.
 - `docs/troubleshooting.md`: common user problems and practical fixes.
 - `eval/README.md`: maintainer guide for running the real-model evaluation harness.
 
 Placement rules:
 
 - `docs/` is public product documentation for Hibro users and the open-source community. Prioritize installation, configuration, product behavior, privacy, troubleshooting, and user-extensible features.
+- Write for end users in plain language. Explain actions, outcomes, data handling, and limits; put implementation detail in source-adjacent guides. Keep required privacy disclosures and avoid unsupported security or compliance promises.
 - Maintainer-only operational guides stay beside the tool they describe, such as `eval/README.md`. Repository-wide maintainer constraints stay in `AGENTS.md`.
 - Put contributor material on the public site only when it is intentionally organized as a developer guide. Do not place maintainer runbooks under general user navigation.
 - Guardrails that must not be missed (the hard rules above) stay in `AGENTS.md` even when the related detail moves to `docs/`.
 
 Style rules:
 
-- Everything in the repo is English, including comments and UI strings.
+- Code comments, documentation, and source message keys are English. Preserve the supported Simplified Chinese UI translations and update both catalogs when changing interface copy.
 - Plain reference prose: no em/en dashes, no promotional adjectives, no rule-of-three padding, no fake-depth "-ing" tails. When adding more than a few lines of prose, do a humanizer pass against Wikipedia's "Signs of AI writing" patterns.
 - Moved text keeps its wording; fix only outright grammar errors.

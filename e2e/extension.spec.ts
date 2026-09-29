@@ -1188,11 +1188,15 @@ test('options page manages user skills', async ({
 
   // Toggle it off via the row checkbox.
   await page.uncheck('#userSkillsList .skill-row input[data-toggle]');
-  stored = await page.evaluate(
-    async () =>
-      (await chrome.storage.local.get('hibroUserSkills')).hibroUserSkills,
-  );
-  expect(stored[0].enabled).toBe(false);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        async () =>
+          (await chrome.storage.local.get('hibroUserSkills')).hibroUserSkills[0]
+            .enabled,
+      ),
+    )
+    .toBe(false);
 
   // Delete it.
   await page
@@ -1207,6 +1211,158 @@ test('options page manages user skills', async ({
   );
   expect(stored ?? []).toHaveLength(0);
   await page.close();
+});
+
+test('skill changes preserve data across open Settings pages', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const first = await browserContext.newPage();
+  const second = await browserContext.newPage();
+  const optionsUrl = `chrome-extension://${extensionId}/src/options.html`;
+  await first.goto(optionsUrl);
+  const original = await first.evaluate(() =>
+    chrome.storage.local.get(['hibroUserSkills', 'hibroSkillState']),
+  );
+  try {
+    await first.evaluate(async () => {
+      await chrome.storage.local.set({
+        hibroUserSkills: [
+          {
+            id: 'user:shared-a',
+            name: 'Shared A',
+            description: '',
+            match: ['https://example.com/*'],
+            enabled: true,
+          },
+        ],
+        hibroSkillState: {},
+      });
+    });
+    await first.reload();
+    await second.goto(optionsUrl);
+    for (const page of [first, second]) {
+      await page.getByRole('tab', { name: 'Agent skills' }).click();
+      await expect(
+        page.getByRole('checkbox', { name: 'Enabled: Shared A', exact: true }),
+      ).toBeChecked();
+    }
+    await second.getByRole('button', { name: '+ New skill' }).click();
+    await second.locator('#skillName').fill('Shared B');
+    await second.locator('#skillMatch').fill('https://example.org/*');
+    await second.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(second.locator('#skillDialog')).not.toBeVisible();
+
+    await first
+      .getByRole('checkbox', { name: 'Enabled: Shared A', exact: true })
+      .uncheck();
+    await expect
+      .poll(() =>
+        first.evaluate(async () => {
+          const { hibroUserSkills } =
+            await chrome.storage.local.get('hibroUserSkills');
+          return hibroUserSkills.map(
+            (skill: { name: string; enabled: boolean }) => ({
+              name: skill.name,
+              enabled: skill.enabled,
+            }),
+          );
+        }),
+      )
+      .toEqual([
+        { name: 'Shared A', enabled: false },
+        { name: 'Shared B', enabled: true },
+      ]);
+    await expect(
+      second.getByRole('checkbox', { name: 'Enabled: Shared A', exact: true }),
+    ).not.toBeChecked();
+    await expect(first.getByText('Shared B', { exact: true })).toBeVisible();
+
+    const secondB = second
+      .locator('.skill-row')
+      .filter({ hasText: 'Shared B' });
+    await secondB.getByRole('button').click();
+    await second.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await second
+      .locator('#skillDesc')
+      .fill('Changed in the other Settings page.');
+    // Editing the text must preserve a list toggle made while the dialog is open.
+    await first
+      .getByRole('checkbox', { name: 'Enabled: Shared B', exact: true })
+      .uncheck();
+    await second.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(
+      first.getByText('Changed in the other Settings page.'),
+    ).toBeVisible();
+    for (const page of [first, second]) {
+      await expect(
+        page.getByRole('checkbox', { name: 'Enabled: Shared B', exact: true }),
+      ).not.toBeChecked();
+    }
+    await first
+      .locator('.skill-row')
+      .filter({ hasText: 'Shared A' })
+      .getByRole('button')
+      .click();
+    await first.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    await expect(second.getByText('Shared A', { exact: true })).toHaveCount(0);
+    await expect(second.getByText('Shared B', { exact: true })).toBeVisible();
+
+    await first
+      .getByRole('checkbox', { name: 'Enabled: arxiv', exact: true })
+      .uncheck();
+    await expect(
+      second.getByRole('checkbox', { name: 'Enabled: arxiv', exact: true }),
+    ).not.toBeChecked();
+    await second
+      .getByRole('checkbox', { name: 'Enabled: Hacker News', exact: true })
+      .uncheck();
+    await expect(
+      first.getByRole('checkbox', {
+        name: 'Enabled: Hacker News',
+        exact: true,
+      }),
+    ).not.toBeChecked();
+    expect(
+      await first.evaluate(() => chrome.storage.local.get('hibroSkillState')),
+    ).toEqual({
+      hibroSkillState: {
+        'builtin:arxiv': { enabled: false },
+        'builtin:Hacker News': { enabled: false },
+      },
+    });
+
+    // Two editors can save unrelated additions at the same time.
+    for (const [page, name] of [
+      [first, 'Concurrent C'],
+      [second, 'Concurrent D'],
+    ] as const) {
+      await page.getByRole('button', { name: '+ New skill' }).click();
+      await page.locator('#skillName').fill(name);
+      await page.locator('#skillMatch').fill('https://example.net/*');
+    }
+    await Promise.all(
+      [first, second].map((page) =>
+        page.getByRole('button', { name: 'Save', exact: true }).click(),
+      ),
+    );
+    for (const page of [first, second]) {
+      await expect(
+        page.getByText('Concurrent C', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('Concurrent D', { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText('Shared B', { exact: true })).toBeVisible();
+    }
+  } finally {
+    await first.evaluate(async (stored) => {
+      await chrome.storage.local.remove(['hibroUserSkills', 'hibroSkillState']);
+      await chrome.storage.local.set(stored);
+    }, original);
+    await first.close();
+    await second.close();
+  }
 });
 
 test('built-in skills are listed on the options page', async ({
@@ -1378,6 +1534,15 @@ for (const language of ['en', 'zh-CN'] as const) {
       ),
     ).toEqual(storageBefore);
     await enabled.check();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          async () =>
+            (await chrome.storage.local.get('hibroSkillState'))
+              .hibroSkillState?.['builtin:arxiv']?.enabled,
+        ),
+      )
+      .toBe(true);
     await page.close();
   });
 }
@@ -2535,11 +2700,14 @@ test('remote Markdown images require one-time loading without credentials or ref
   try {
     await panel.reload();
     const card = panel.getByRole('figure', { name: 'Generated landscape' });
+    await panel.setViewportSize({ width: 320, height: 720 });
     await expect(card).toContainText('assets.example.org');
+    await expect(card.getByText(imageUrl, { exact: true })).toBeVisible();
     await expect(card).toContainText('IP address');
     await expect(
       card.getByRole('button', { name: 'Load image from assets.example.org' }),
     ).toBeVisible();
+    expect(await horizontalOverflow(panel)).toEqual({ page: 0, scrollers: [] });
     expect(requests).toEqual([]);
 
     await card

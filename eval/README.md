@@ -14,7 +14,7 @@ The self-test checks the evaluation setup without an API key:
 pnpm eval -- --self-test
 ```
 
-It builds an isolated evaluation copy under `.local/tmp/eval-dist/`, opens a live arXiv page in Chromium, and runs the navigation case with a local scripted model. Network access to arXiv is still required. The evaluation build never replaces the production `dist/` directory.
+It builds an isolated evaluation copy, opens a live arXiv page in Chromium, and runs the navigation case with a local scripted model. Network access to arXiv is still required. The evaluation build never replaces the production `dist/` directory.
 
 ## Run with a real model
 

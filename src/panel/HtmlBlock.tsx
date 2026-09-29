@@ -1,6 +1,7 @@
-// Shows model-generated HTML as code or in an opt-in static preview. The iframe
-// sandbox and injected CSP block scripts, forms, popups, and network requests.
+// Shows model-generated HTML as code or in an opt-in static preview. Sanitizing
+// navigation sources complements the iframe sandbox and resource-blocking CSP.
 
+import DOMPurify from 'dompurify';
 import { useContext, useMemo, useState } from 'react';
 import type { CustomRenderer, CustomRendererProps } from 'streamdown';
 import { PartStreamingContext } from './partStreaming';
@@ -11,7 +12,34 @@ const PREVIEW_CSP =
 
 // Prepending avoids matching a fake <head> inside untrusted text or attributes.
 function buildSrcDoc(code: string): string {
-  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}"><base target="_blank">${code}`;
+  // CSP does not block a frame navigating itself. Remove navigation targets,
+  // nested documents, and SVG animations that could restore link attributes.
+  const sanitized = DOMPurify.sanitize(code, {
+    WHOLE_DOCUMENT: true,
+    FORBID_TAGS: [
+      'base',
+      'meta',
+      'iframe',
+      'frame',
+      'frameset',
+      'object',
+      'embed',
+      'template',
+      'animate',
+      'animatemotion',
+      'animatetransform',
+      'set',
+    ],
+    FORBID_ATTR: [
+      'href',
+      'xlink:href',
+      'action',
+      'formaction',
+      'srcdoc',
+      'ping',
+    ],
+  });
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">${sanitized}`;
 }
 
 function HtmlBlock({ code, isIncomplete }: CustomRendererProps) {
