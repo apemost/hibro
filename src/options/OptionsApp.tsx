@@ -315,6 +315,11 @@ export function OptionsApp() {
     setEditDesc(skill?.description ?? '');
     setEditMatch(skill?.match.join('\n') ?? '');
     setEditInstructions(skill?.instructions ?? '');
+    dialogRef.current
+      ?.querySelectorAll<
+        HTMLInputElement | HTMLTextAreaElement
+      >('input, textarea')
+      .forEach((field) => field.setCustomValidity(''));
     dialogRef.current?.showModal();
     // Do not steal focus when the user already reached another field.
     requestAnimationFrame(() => {
@@ -324,9 +329,18 @@ export function OptionsApp() {
     });
   }
 
-  async function onSkillSubmit(e: FormEvent): Promise<void> {
+  async function onSkillSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     if (editReadOnly) return;
+    const form = e.currentTarget;
+    for (const field of form.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement
+    >('input[required], textarea[required]')) {
+      field.setCustomValidity(
+        field.value.trim() ? '' : messages.skills.requiredField,
+      );
+    }
+    if (!form.reportValidity()) return;
     const match = editMatch
       .split('\n')
       .map((x) => x.trim())
@@ -337,7 +351,7 @@ export function OptionsApp() {
       name: editName.trim(),
       description: editDesc.trim(),
       match,
-      instructions: editInstructions.trim() || undefined,
+      instructions: editInstructions.trim(),
       enabled: true,
     };
     let created = false;
@@ -817,7 +831,10 @@ export function OptionsApp() {
               value={editName}
               readOnly={editReadOnly}
               ref={nameRef}
-              onChange={(e) => setEditName(e.target.value)}
+              onChange={(e) => {
+                e.target.setCustomValidity('');
+                setEditName(e.target.value);
+              }}
             />
           </label>
           <label>
@@ -826,9 +843,13 @@ export function OptionsApp() {
               id="skillDesc"
               type="text"
               placeholder={messages.skills.descriptionPlaceholder}
+              required
               value={editDesc}
               readOnly={editReadOnly}
-              onChange={(e) => setEditDesc(e.target.value)}
+              onChange={(e) => {
+                e.target.setCustomValidity('');
+                setEditDesc(e.target.value);
+              }}
             />
           </label>
           <label>
@@ -837,9 +858,13 @@ export function OptionsApp() {
               id="skillMatch"
               rows={2}
               placeholder="https://github.com/*&#10;https://*.github.com/*"
+              required
               value={editMatch}
               readOnly={editReadOnly}
-              onChange={(e) => setEditMatch(e.target.value)}
+              onChange={(e) => {
+                e.target.setCustomValidity('');
+                setEditMatch(e.target.value);
+              }}
             />
           </label>
           <label>
@@ -848,9 +873,13 @@ export function OptionsApp() {
               id="skillInstructions"
               rows={editReadOnly ? 12 : 4}
               placeholder={messages.skills.instructionsPlaceholder}
+              required
               value={editInstructions}
               readOnly={editReadOnly}
-              onChange={(e) => setEditInstructions(e.target.value)}
+              onChange={(e) => {
+                e.target.setCustomValidity('');
+                setEditInstructions(e.target.value);
+              }}
             />
           </label>
           <div className="actions">

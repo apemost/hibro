@@ -190,12 +190,28 @@ input {
 }
 
 select {
+  appearance: none;
   font: inherit;
-  padding: 8px 10px;
+  padding: 8px 32px 8px 10px;
   border-radius: 6px;
   border: 1px solid rgba(128, 128, 128, 0.4);
   background: transparent;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    right 17px center,
+    right 12px center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
   color: inherit;
+}
+
+@media (forced-colors: active) {
+  select {
+    appearance: auto;
+    background-image: none;
+  }
 }
 
 .actions {
@@ -488,6 +504,12 @@ label.check {
   gap: 12px;
   padding: 10px 0;
   border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.provider-row .skill-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 #providerStatus {

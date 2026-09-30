@@ -1083,6 +1083,110 @@ test('Settings language setting updates an open side panel and persists', async 
   await options.close();
 });
 
+for (const language of ['en', 'zh-CN'] as const) {
+  test(`user skill fields reject empty and whitespace-only values in ${language}`, async ({
+    browserContext,
+    extensionId,
+  }) => {
+    const page = await browserContext.newPage();
+    await page.goto(`chrome-extension://${extensionId}/src/options.html`);
+    const original = await page.evaluate(() =>
+      chrome.storage.local.get('hibroUserSkills'),
+    );
+    try {
+      await page.evaluate(async (uiLanguage) => {
+        await chrome.storage.local.set({
+          hibroOptions: { language: uiLanguage },
+          hibroUserSkills: [],
+        });
+      }, language);
+      const chinese = language === 'zh-CN';
+      await page
+        .getByRole('tab', { name: chinese ? '智能体技能' : 'Agent skills' })
+        .click();
+      await page
+        .getByRole('button', { name: chinese ? '+ 新建技能' : '+ New skill' })
+        .click();
+      const dialog = page.locator('#skillDialog');
+      const fields = [
+        [dialog.locator('#skillName'), ' validation-skill '],
+        [dialog.locator('#skillDesc'), ' Summarize articles. '],
+        [
+          dialog.locator('#skillMatch'),
+          ' https://example.com/* \n\n https://*.example.com/* ',
+        ],
+        [dialog.locator('#skillInstructions'), ' Include source links. '],
+      ] as const;
+      for (const [field, value] of fields) await field.fill(value);
+      const save = dialog.getByRole('button', {
+        name: chinese ? '保存' : 'Save',
+        exact: true,
+      });
+      for (const [field, value] of fields) {
+        for (const blank of ['', '   ']) {
+          await field.fill(blank);
+          await save.click();
+          await expect(dialog).toBeVisible();
+          await expect(field).toBeFocused();
+          expect(
+            await page.evaluate(() =>
+              chrome.storage.local.get('hibroUserSkills'),
+            ),
+          ).toEqual({ hibroUserSkills: [] });
+        }
+        await field.fill(value);
+      }
+      await save.click();
+      await expect(dialog).toBeHidden();
+      expect(
+        await page.evaluate(
+          async () =>
+            (await chrome.storage.local.get('hibroUserSkills')).hibroUserSkills,
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          name: 'validation-skill',
+          description: 'Summarize articles.',
+          match: ['https://example.com/*', 'https://*.example.com/*'],
+          instructions: 'Include source links.',
+          enabled: true,
+        }),
+      ]);
+      const actions = page.getByRole('button', {
+        name: chinese
+          ? 'validation-skill 的操作'
+          : 'Actions for validation-skill',
+        exact: true,
+      });
+      const edit = page.getByRole('menuitem', {
+        name: chinese ? '编辑' : 'Edit',
+        exact: true,
+      });
+      await actions.click();
+      await edit.click();
+      await dialog.locator('#skillDesc').fill('   ');
+      await save.click();
+      await expect(dialog.locator('#skillDesc')).toBeFocused();
+      await dialog
+        .getByRole('button', { name: chinese ? '取消' : 'Cancel', exact: true })
+        .click();
+      await actions.click();
+      await edit.click();
+      await expect(dialog.locator('#skillDesc')).toHaveValue(
+        'Summarize articles.',
+      );
+      await save.click();
+      await expect(dialog).toBeHidden();
+    } finally {
+      await page.evaluate(async (stored) => {
+        await chrome.storage.local.remove('hibroUserSkills');
+        await chrome.storage.local.set(stored);
+      }, original);
+      await page.close();
+    }
+  });
+}
+
 test('options page manages user skills', async ({
   browserContext,
   extensionId,
@@ -1249,7 +1353,9 @@ test('skill changes preserve data across open Settings pages', async ({
     }
     await second.getByRole('button', { name: '+ New skill' }).click();
     await second.locator('#skillName').fill('Shared B');
+    await second.locator('#skillDesc').fill('Summarize example articles.');
     await second.locator('#skillMatch').fill('https://example.org/*');
+    await second.locator('#skillInstructions').fill('Include source links.');
     await second.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(second.locator('#skillDialog')).not.toBeVisible();
 
@@ -1339,7 +1445,9 @@ test('skill changes preserve data across open Settings pages', async ({
     ] as const) {
       await page.getByRole('button', { name: '+ New skill' }).click();
       await page.locator('#skillName').fill(name);
+      await page.locator('#skillDesc').fill('Summarize example articles.');
       await page.locator('#skillMatch').fill('https://example.net/*');
+      await page.locator('#skillInstructions').fill('Include source links.');
     }
     await Promise.all(
       [first, second].map((page) =>

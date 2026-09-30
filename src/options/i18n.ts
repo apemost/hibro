@@ -82,6 +82,7 @@ interface OptionsMessages {
     patterns: string;
     instructions: string;
     instructionsPlaceholder: string;
+    requiredField: string;
   };
 }
 
@@ -169,6 +170,7 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
       instructions: 'Instructions',
       instructionsPlaceholder:
         'The search box is input#q. Submit with button#go.',
+      requiredField: 'Enter a value other than whitespace.',
     },
   },
   'zh-CN': {
@@ -250,6 +252,7 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
       patterns: 'URL 匹配模式（每行一个）',
       instructions: '指令',
       instructionsPlaceholder: '搜索框对应 input#q，提交按钮对应 button#go。',
+      requiredField: '请输入非空白内容。',
     },
   },
 };

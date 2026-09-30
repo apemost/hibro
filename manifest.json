@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Hibro",
   "version": "0.2.1",
-  "description": "Ask AI about web pages.",
+  "description": "Hibro is an open-source AI browser assistant that helps you read and interact with web pages.",
   "permissions": [
     "debugger",
     "scripting",

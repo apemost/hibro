@@ -11,7 +11,7 @@ Open its ellipsis menu and choose View to read or copy the instructions and webs
 ## Create your own skill
 
 1. In Agent skills, choose New skill.
-2. Enter a name and, optionally, a short description.
+2. Enter a name and a short description.
 3. Add the website rules under URL patterns, one per line.
 4. Write the instructions and save.
 

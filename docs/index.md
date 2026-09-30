@@ -1,6 +1,6 @@
 # Documentation
 
-Hibro is an open-source AI assistant that helps you read and interact with supported web pages. Ask questions and request page actions from the side panel, or translate page content from the toolbar.
+Hibro is an open-source AI browser assistant.
 
 Start with [Getting started](getting-started.md) if you are installing Hibro for the first time.
 

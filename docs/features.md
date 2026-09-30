@@ -69,7 +69,7 @@ Settings and the side panel support English and Simplified Chinese. Choose the i
 
 Skills give Hibro instructions for particular websites. In Settings, open Agent skills and use the checkbox beside a skill to enable or disable it. The ellipsis menu offers View for built-in skills and Edit or Delete for your own skills.
 
-New skills start enabled, and editing keeps their current on/off setting. Enabled skills apply when the page address matches their rules. Their instructions are sent to your selected provider. See [Hibro skills](skills.md) to create or manage them.
+Creating or editing a skill requires a name, description, at least one URL pattern, and instructions. New skills start enabled, and editing keeps their current on/off setting. Enabled skills apply when the page address matches their rules. Their instructions are sent to your selected provider. See [Hibro skills](skills.md) to create or manage them.
 
 ## Page access and privacy
 

@@ -1,18 +1,20 @@
 # Hibro
 
-Hibro is an open-source AI assistant that helps you read and interact with supported web pages. Ask questions and request page actions from the side panel, or translate page content from the toolbar.
+Hibro is an open-source AI browser assistant that helps you read and interact with web pages.
 
-## What it does
+## Features
 
-- Works with OpenAI-compatible services, OpenAI, and Anthropic.
-- Streams Markdown answers with diagrams, charts, validated image assets, code, and sandboxed HTML previews.
-- Translates a page in place, with each translation under the block it came from.
-- Saves recent conversations and supports site-specific skills.
-- Keeps settings and history in browser extension storage.
+- Ask questions about the current page, or request summaries and explanations in the side panel.
+- Get assistance with page interactions, such as following links, entering text, and navigating.
+- Use immersive translation as a reading aid, with the original text kept visible.
+- Read streaming responses with support for Markdown, math, diagrams, charts, code, and static HTML previews.
+- Revisit up to 10 recent conversations, with options to switch, rename, or delete them.
+- Add guidance for specific websites through built-in or custom skills.
+- Choose between saved provider profiles for OpenAI-compatible services, OpenAI, and Anthropic.
 
 ## Quick start
 
-Install [Hibro from the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije). Open Hibro from the browser toolbar, open the side panel from its menu, then add an AI provider from Settings. The selected model must support function calling.
+Install [Hibro from the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije). Open Hibro from the browser toolbar, then add an AI provider from Settings. Chat and page actions require a model that supports function calling.
 
 To build Hibro from source, use Node.js 24 and the pnpm version specified by `packageManager` in [package.json](package.json):
 
@@ -25,7 +27,7 @@ Load `dist/` as an unpacked extension in Chrome or Edge. See [Contributing](CONT
 
 ## Documentation
 
-- [Documentation index](docs/index.md)
+- [Overview](docs/index.md)
 - [Getting started](docs/getting-started.md)
 - [Features](docs/features.md)
 - [Provider setup](docs/providers.md)
