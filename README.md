@@ -16,7 +16,7 @@ Hibro is an open-source AI browser assistant that helps you read and interact wi
 
 Install [Hibro from the Chrome Web Store](https://chromewebstore.google.com/detail/hibro/adjgimddlhgjegcbbcmccalenolmeije). Open Hibro from the browser toolbar, then add an AI provider from Settings. Chat and page actions require a model that supports function calling.
 
-To build Hibro from source, use Node.js 24 and the pnpm version specified by `packageManager` in [package.json](package.json):
+To build Hibro from source, use Node.js 24 or later and the pnpm version specified by `packageManager` in [package.json](package.json):
 
 ```bash
 pnpm install --frozen-lockfile

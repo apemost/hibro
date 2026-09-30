@@ -16,7 +16,7 @@ Remove API keys, tokens, private page content, and personal information before p
 
 ## Set up a development checkout
 
-Use Node.js 24, matching the repository workflows, and the pnpm version specified by `packageManager` in [package.json](package.json). Use pnpm for dependency changes so the lockfile stays consistent.
+Use Node.js 24 or later and the pnpm version specified by `packageManager` in [package.json](package.json).
 
 Fork the repository on GitHub, then clone your fork and create a branch. Build the extension using the [README quick start](README.md#quick-start).
 
