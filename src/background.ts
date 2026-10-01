@@ -45,7 +45,7 @@ interface ControlMessage {
 type PanelMessage = SendMessage | ControlMessage;
 
 // Every request uses tools, including ordinary page questions.
-const MAX_AGENT_STEPS = 12;
+const MAX_AGENT_STEPS = 255;
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === REMOTE_IMAGE_PORT) {
