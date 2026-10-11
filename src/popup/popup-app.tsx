@@ -3,6 +3,7 @@
 // chrome.action.onClicked from firing, so opening the panel lives here.
 
 import { useEffect, useState } from 'react';
+import { Select } from '@/components/ui/select';
 import { PanelI18nProvider, usePanelI18n } from '@/panel/i18n';
 import { SettingsIcon } from '@/panel/settings-icon';
 import { usePageTranslation } from './use-translation';
@@ -178,20 +179,17 @@ function Popup() {
         <label className="popup-row-label" htmlFor="popupTranslationTarget">
           {ui.translateInto}
         </label>
-        <select
+        <Select
           id="popupTranslationTarget"
+          placement="flow"
           value={target}
           disabled={working}
-          onChange={(e) =>
-            setTarget(e.currentTarget.value as TranslationLanguage)
-          }
-        >
-          {TRANSLATION_LANGUAGES.map((entry) => (
-            <option key={entry.code} value={entry.code}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
+          onValueChange={(value) => setTarget(value as TranslationLanguage)}
+          options={TRANSLATION_LANGUAGES.map(({ code, label }) => ({
+            value: code,
+            label,
+          }))}
+        />
         <button
           type="button"
           id="popupTranslateBtn"

@@ -1,0 +1,152 @@
+/* Shared controls use the host surface's colors in all extension entry points. */
+.hibro-select,
+.hibro-checkbox {
+  --control-bg: var(--bg, var(--background, #fff));
+  --control-fg: var(--fg, var(--foreground, #1f2328));
+  --control-accent: var(--focus, var(--ring, var(--accent, #2563eb)));
+  --control-border: color-mix(in srgb, var(--control-fg) 28%, transparent);
+}
+
+.hibro-select {
+  position: relative;
+  min-width: 0;
+  font: inherit;
+}
+
+.hibro-select .hibro-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--control-fg);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.hibro-select-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hibro-select-chevron {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: -3px 2px 0;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+.hibro-select .hibro-select-trigger:hover:not(:disabled),
+.hibro-select-trigger[aria-expanded="true"] {
+  border-color: var(--control-accent);
+}
+
+.hibro-select-trigger:focus-visible,
+input.hibro-checkbox:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 2px;
+}
+
+.hibro-select-trigger:disabled,
+input.hibro-checkbox:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hibro-select-menu {
+  z-index: 100;
+  position: relative;
+  box-sizing: border-box;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--control-fg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+  font-weight: 400;
+  text-align: start;
+  scrollbar-width: thin;
+}
+
+.hibro-select-option {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.hibro-select-option[data-active="true"] {
+  background: color-mix(in srgb, var(--control-fg) 10%, var(--control-bg));
+}
+
+.hibro-select-option[aria-selected="true"] {
+  font-weight: 600;
+}
+
+.hibro-select-check {
+  color: var(--control-accent);
+}
+
+.hibro-select-check {
+  flex: 0 0 12px;
+  font-size: 12px;
+}
+
+input.hibro-checkbox {
+  appearance: none;
+  position: relative;
+  display: inline-grid;
+  place-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 2px 0 0;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--control-bg);
+  color: var(--control-bg);
+  cursor: pointer;
+}
+
+input.hibro-checkbox:checked {
+  background: var(--control-accent);
+  border-color: var(--control-accent);
+}
+
+input.hibro-checkbox:checked::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+@media (forced-colors: active) {
+  .hibro-select-option[data-active="true"] {
+    outline: 1px solid Highlight;
+  }
+  input.hibro-checkbox:checked {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}

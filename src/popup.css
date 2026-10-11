@@ -135,7 +135,8 @@ body {
 /* One stable row in every state: the label and the language picker never move,
    and only the trailing icon button changes as a run starts and finishes. */
 .popup-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   /* Right padding matches the title bar so the two icon columns line up. */
@@ -148,25 +149,28 @@ body {
   white-space: nowrap;
 }
 
-/* Never grows past its content; shrinks only if the label needs the room. */
-.popup-row select {
-  flex: 0 1 auto;
-  min-width: 0;
-  padding: 3px 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: inherit;
-  font: inherit;
+/* Flow placement reserves space for the menu inside the extension window. */
+.popup-row .hibro-select {
+  display: contents;
 }
 
-.popup-row select:disabled {
-  opacity: 0.6;
+.popup-row .hibro-select-trigger {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  padding: 3px 6px;
+}
+
+.popup-row .hibro-select-menu {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  max-height: 240px;
 }
 
 /* Held against the right edge, under the title bar's icons. */
 .popup-row .popup-icon-btn {
-  flex: none;
+  grid-column: 3;
+  grid-row: 1;
   margin-inline-start: auto;
 }
 

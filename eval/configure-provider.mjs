@@ -11,7 +11,17 @@ export async function configureProvider(context, extensionId, profile) {
     if (!(await consent.isChecked())) await consent.check();
     await page.click('#newProviderBtn');
     await page.fill('#providerName', name);
-    await page.selectOption('#providerType', profile.provider);
+    await page.locator('#providerType').click();
+    await page
+      .getByRole('option', {
+        name: {
+          'openai-compatible': 'OpenAI-compatible',
+          openai: 'OpenAI',
+          anthropic: 'Anthropic',
+        }[profile.provider],
+        exact: true,
+      })
+      .click();
     await page.fill('#providerBaseUrl', profile.baseUrl || '');
     await page.fill('#providerApiKey', profile.apiKey);
     await page.fill('#providerModel', profile.model);

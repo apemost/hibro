@@ -5,6 +5,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect } from './fixtures';
+import { selectValue } from './controls';
 import { startMock, type MockServer } from './mock';
 import { githubCodePage } from './github-code';
 import { configureProvider as configureEvalProvider } from '../eval/configure-provider.mjs';
@@ -189,7 +190,7 @@ async function addProvider(
     await consent.check();
   await page.click('#newProviderBtn');
   await page.fill('#providerName', opts.name);
-  if (opts.type) await page.selectOption('#providerType', opts.type);
+  if (opts.type) await selectValue(page.locator('#providerType'), opts.type);
   if (opts.baseUrl !== undefined)
     await page.fill('#providerBaseUrl', opts.baseUrl);
   await page.fill('#providerApiKey', opts.apiKey ?? 'test-key');
@@ -637,9 +638,10 @@ test('privacy-consent errors link directly to provider settings', async ({
     model: 'test-model',
   });
   await options.getByRole('tab', { name: 'General' }).click();
-  await options
-    .getByRole('combobox', { name: 'Language', exact: true })
-    .selectOption('zh-CN');
+  await selectValue(
+    options.getByRole('combobox', { name: 'Language', exact: true }),
+    'zh-CN',
+  );
   await options.evaluate(async () =>
     chrome.storage.local.remove('hibroPrivacyConsent'),
   );
@@ -688,7 +690,7 @@ test('provider setup rejects insecure remote endpoints', async ({
     if (!(await consent.isChecked())) await consent.check();
     await page.click('#newProviderBtn');
     await page.fill('#providerName', 'Insecure remote');
-    await page.selectOption('#providerType', 'openai-compatible');
+    await selectValue(page.locator('#providerType'), 'openai-compatible');
     await page.fill('#providerBaseUrl', 'http://api.example.com/v1');
     await page.fill('#providerApiKey', 'not-a-real-key');
     await page.fill('#providerModel', 'test-model');
@@ -897,7 +899,7 @@ test('options page switches to Chinese and remembers the language', async ({
   await expect(generalPanel.locator('svg')).toHaveCount(0);
   await expect(generalPanel.locator('[data-tip]')).toHaveCount(0);
   await expect(language).toHaveCSS('opacity', '1');
-  await language.selectOption('zh-CN');
+  await selectValue(language, 'zh-CN');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(page.getByRole('heading', { name: 'Hibro 设置' })).toBeVisible();
@@ -944,7 +946,7 @@ test('options page switches to Chinese and remembers the language', async ({
     reopened
       .locator('#panel-general')
       .getByRole('combobox', { name: '语言', exact: true }),
-  ).toHaveValue('zh-CN');
+  ).toHaveAttribute('data-value', 'zh-CN');
   await reopened.evaluate(async () => {
     await chrome.storage.local.set({
       hibroOptions: { language: 'unsupported' },
@@ -1034,7 +1036,7 @@ test('Settings page does not scroll horizontally in either language', async ({
     exact: true,
   });
   await expect(language).toBeVisible();
-  await language.selectOption('zh-CN');
+  await selectValue(language, 'zh-CN');
   expect(await horizontalOverflow(page)).toEqual({ page: 0, scrollers: [] });
   await page.close();
 });
@@ -1060,7 +1062,7 @@ test('Settings language setting updates an open side panel and persists', async 
     exact: true,
   });
   await expect(language).toBeVisible();
-  await language.selectOption('zh-CN');
+  await selectValue(language, 'zh-CN');
 
   await expect(panel.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(
@@ -1508,7 +1510,7 @@ for (const language of ['en', 'zh-CN'] as const) {
     const page = await browserContext.newPage();
     await page.goto(`chrome-extension://${extensionId}/src/options.html`);
     await page.getByRole('tab', { name: 'General', exact: true }).click();
-    await page.locator('#optionsLanguage').selectOption(language);
+    await selectValue(page.locator('#optionsLanguage'), language);
     const chinese = language === 'zh-CN';
     await page
       .getByRole('tab', { name: chinese ? '智能体技能' : 'Agent skills' })
@@ -1696,7 +1698,7 @@ test('skill groups keep wrapped names and descriptions readable on narrow screen
     await page.reload();
     for (const language of ['en', 'zh-CN']) {
       await page.getByRole('tab', { name: /^(General|常规)$/ }).click();
-      await page.locator('#optionsLanguage').selectOption(language);
+      await selectValue(page.locator('#optionsLanguage'), language);
       await page
         .getByRole('tab', { name: /^(Agent skills|智能体技能)$/ })
         .click();
@@ -2905,7 +2907,7 @@ test('toolbar popup translates the page and shares state with the panel', async 
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveAttribute('data-tip', 'Translate page');
   // Without an explicit choice the target follows the interface language.
-  await expect(target).toHaveValue('en');
+  await expect(target).toHaveAttribute('data-value', 'en');
   // The popup owns the only in-extension way to reach the side panel.
   await expect(popup.locator('#popupOpenPanelBtn')).toBeVisible();
 
@@ -2927,7 +2929,7 @@ test('toolbar popup translates the page and shares state with the panel', async 
   // Only the action changes: the language stays put so the row never reflows.
   await expect(toggle).toHaveAttribute('data-tip', 'Show original only');
   await expect(target).toBeVisible();
-  await expect(target).toHaveValue('en');
+  await expect(target).toHaveAttribute('data-value', 'en');
 
   // Translation state lives on the tab, not in the surface that started it:
   // the real popup is rebuilt on every icon click, and a fresh one still finds
@@ -2943,7 +2945,7 @@ test('toolbar popup translates the page and shares state with the panel', async 
   await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(0);
 
   // The popup's language picker writes the same preference Settings uses.
-  await target.selectOption('ja');
+  await selectValue(target, 'ja');
   await expect
     .poll(async () =>
       popup.evaluate(
@@ -4522,7 +4524,7 @@ test('provider picker uses available toolbar width for long model names', async 
     'DeepSeek / deepseek-v4-flash-vision-exp',
   );
 
-  const label = panel.locator('.provider-picker-label');
+  const label = panel.locator('#providerSelect .hibro-select-label');
   const labelWidth = await label.evaluate((element) => ({
     client: element.clientWidth,
     scroll: element.scrollWidth,
@@ -6106,4 +6108,102 @@ test('the model is not given an arbitrary JavaScript execution tool', async ({
     await panel.close();
     await fixture.close();
   }
+});
+
+// A native OS menu cannot satisfy these in-page geometry and keyboard contracts.
+test('Hibro popup selector keeps its scrollable menu inside the popup and supports keyboard selection', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const page = await browserContext.newPage();
+  await page.setViewportSize({ width: 300, height: 420 });
+  await page.goto(`chrome-extension://${extensionId}/src/popup.html`);
+  const target = page.getByRole('combobox', { name: 'Translate into' });
+  await target.click();
+  const menu = page.getByRole('listbox');
+  await expect(menu).toBeVisible();
+  const box = (await menu.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(300);
+  expect(box.y + box.height).toBeLessThanOrEqual(420);
+  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  await target.press('End');
+  await expect(
+    page.getByRole('option', { name: 'ไทย', exact: true }),
+  ).toBeInViewport();
+  await target.press('Home');
+  await target.press('ArrowDown');
+  await target.press('Enter');
+  await expect(menu).toBeHidden();
+  await expect(target).toContainText('简体中文');
+  await expect(target).toBeFocused();
+  await target.press('ArrowDown');
+  await target.press('End');
+  await target.press('Escape');
+  await expect(target).toContainText('简体中文');
+  await expect(target).toBeFocused();
+  await target.click();
+  await target.press('j');
+  await target.press('Escape');
+  await target.click();
+  await target.press('Tab');
+  await expect(menu).toBeHidden();
+  await expect(page.locator('#popupTranslateBtn')).toBeFocused();
+  await target.click();
+  await page.getByRole('option', { name: '日本語', exact: true }).click();
+  await page.reload();
+  await expect(target).toContainText('日本語');
+  await page.close();
+});
+
+test('Hibro settings controls preserve labels, custom checkbox appearance and dialog selection', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const page = await browserContext.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options.html`);
+  const consent = page.getByRole('checkbox', {
+    name: 'I understand and agree to this data use.',
+  });
+  await expect(consent).toHaveCSS('appearance', 'none');
+  await consent.uncheck();
+  await consent.focus();
+  await consent.press('Space');
+  await expect(consent).toBeChecked();
+  await expect(page.locator('#newProviderBtn')).toBeEnabled();
+  await page.locator('#newProviderBtn').click();
+  const type = page.locator('#providerType');
+  await type.click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.getByRole('option', { name: 'Anthropic', exact: true }).click();
+  await expect(page.getByRole('listbox')).toBeHidden();
+  await expect(type).toContainText('Anthropic');
+  await expect(type).toBeFocused();
+  await type.click();
+  await type.press('Escape');
+  await expect(page.locator('#providerDialog')).toBeVisible();
+  await expect(page.getByRole('listbox')).toBeHidden();
+  await type.press('Escape');
+  await expect(page.locator('#providerDialog')).toBeHidden();
+  await page.getByRole('tab', { name: 'General', exact: true }).click();
+  const language = page.locator('#optionsTranslationTarget');
+  await language.click();
+  await language.press('Home');
+  const scrolled = await page.getByRole('listbox').evaluate(async (el) => {
+    el.scrollTop = 160;
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+    return el.scrollTop;
+  });
+  expect(scrolled).toBeGreaterThan(100);
+  await language.press('f');
+  await language.press('Enter');
+  await expect(language).toContainText('Français');
+  await language.click();
+  await page.getByRole('heading', { name: 'Hibro Settings' }).click();
+  await expect(page.getByRole('listbox')).toBeHidden();
+  await page.close();
 });

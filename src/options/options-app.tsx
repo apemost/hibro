@@ -15,6 +15,8 @@ import {
   writeProfiles,
 } from '@/shared/providers';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SkillActionsMenu } from './skill-actions-menu';
 import {
   DEFAULT_OPTIONS_LANGUAGE,
@@ -452,18 +454,16 @@ export function OptionsApp() {
               {messages.general.languageDescription}
             </p>
           </div>
-          <select
+          <Select
             className="setting-control"
             id="optionsLanguage"
             aria-describedby="optionsLanguageDescription"
             value={language}
-            onChange={(e) =>
-              changeLanguage(e.currentTarget.value as OptionsLanguage)
-            }
-          >
-            <option value="en">{OPTIONS_LANGUAGE_LABELS.en}</option>
-            <option value="zh-CN">{OPTIONS_LANGUAGE_LABELS['zh-CN']}</option>
-          </select>
+            onValueChange={(value) => changeLanguage(value as OptionsLanguage)}
+            options={Object.entries(OPTIONS_LANGUAGE_LABELS).map(
+              ([value, label]) => ({ value, label }),
+            )}
+          />
         </div>
 
         <div className="setting-row">
@@ -478,23 +478,19 @@ export function OptionsApp() {
               {messages.general.translationTargetDescription}
             </p>
           </div>
-          <select
+          <Select
             className="setting-control"
             id="optionsTranslationTarget"
             aria-describedby="optionsTranslationTargetDescription"
             value={translationTarget}
-            onChange={(e) =>
-              changeTranslationTarget(
-                e.currentTarget.value as TranslationLanguage,
-              )
+            onValueChange={(value) =>
+              changeTranslationTarget(value as TranslationLanguage)
             }
-          >
-            {TRANSLATION_LANGUAGES.map((entry) => (
-              <option key={entry.code} value={entry.code}>
-                {entry.label}
-              </option>
-            ))}
-          </select>
+            options={TRANSLATION_LANGUAGES.map(({ code, label }) => ({
+              value: code,
+              label,
+            }))}
+          />
         </div>
       </section>
 
@@ -515,9 +511,8 @@ export function OptionsApp() {
           <strong>{messages.providers.privacyTitle}</strong>
           <p>{messages.providers.privacyDescription}</p>
           <label className="privacy-consent">
-            <input
+            <Checkbox
               id="providerPrivacyConsent"
-              type="checkbox"
               checked={privacyConsent}
               onChange={(event) => {
                 const accepted = event.currentTarget.checked;
@@ -636,9 +631,8 @@ export function OptionsApp() {
           <h2 id="builtinSkillsTitle">{messages.skills.builtIn}</h2>
           {builtins.map((b) => (
             <div className="skill-row" key={b.id}>
-              <input
+              <Checkbox
                 className="skill-toggle"
-                type="checkbox"
                 data-toggle={b.id}
                 aria-label={`${messages.common.enabled}: ${b.name}`}
                 checked={skillState[b.id]?.enabled !== false}
@@ -674,9 +668,8 @@ export function OptionsApp() {
           <h2 id="userSkillsTitle">{messages.skills.mySkills}</h2>
           {users.map((s) => (
             <div className="skill-row" data-id={s.id} key={s.id}>
-              <input
+              <Checkbox
                 className="skill-toggle"
-                type="checkbox"
                 data-toggle={s.id}
                 aria-label={`${messages.common.enabled}: ${s.name}`}
                 checked={s.enabled}
@@ -730,20 +723,15 @@ export function OptionsApp() {
               onChange={(e) => setPEditName(e.target.value)}
             />
           </label>
-          <label>
-            {messages.providers.provider}
-            <select
+          <div className="provider-type-field">
+            <label htmlFor="providerType">{messages.providers.provider}</label>
+            <Select
               id="providerType"
               value={pEditType}
-              onChange={(e) => setPEditType(e.target.value as ProviderType)}
-            >
-              {PROVIDER_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              onValueChange={(value) => setPEditType(value as ProviderType)}
+              options={PROVIDER_TYPES}
+            />
+          </div>
           <label>
             {messages.providers.baseUrl}
             <input
