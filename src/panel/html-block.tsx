@@ -4,7 +4,7 @@
 import DOMPurify from 'dompurify';
 import { useContext, useMemo, useState } from 'react';
 import type { CustomRenderer, CustomRendererProps } from 'streamdown';
-import { PartStreamingContext } from './partStreaming';
+import { PartStreamingContext } from './part-streaming';
 import { usePanelI18n } from './i18n';
 
 const PREVIEW_CSP =

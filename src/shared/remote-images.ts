@@ -1,6 +1,6 @@
 // Protocol and URL policy for explicitly requested remote Markdown images.
 
-import type { HibroImageMediaType } from './imageAssets';
+import type { HibroImageMediaType } from './image-assets';
 
 export const REMOTE_IMAGE_PORT = 'hibro-remote-image';
 

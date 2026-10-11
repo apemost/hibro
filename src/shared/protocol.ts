@@ -1,7 +1,7 @@
 // Message contract between the service worker and side panel. Parts keep text,
 // reasoning, image assets, and tool calls separate while a response streams.
 
-import type { HibroImageMediaType } from './imageAssets';
+import type { HibroImageMediaType } from './image-assets';
 
 export type HibroToolState =
   | 'input-available'

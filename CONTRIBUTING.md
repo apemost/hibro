@@ -28,6 +28,8 @@ Run `pnpm dev` during development; it updates the same `dist/` directory. After 
 
 Keep a pull request focused on one problem. Explain why a new dependency is needed and avoid unrelated formatting or refactoring.
 
+Use lowercase kebab-case filenames, including React components and hooks, such as `chart-block.tsx` and `use-hibro-chat.ts`. Keep component and function names in their normal TypeScript style. Preserve recognized suffixes such as `.spec.ts`, `.test.mjs`, and `.d.ts`, tool configuration names, and standard files such as `README.md`, `AGENTS.md`, `SKILL.md`, `LICENSE`, and `NOTICE`. When renaming a file, update its imports, dynamic imports, test asset-name checks, and documentation references.
+
 For a code change, add a test that demonstrates the expected behavior and observe it fail before implementing the fix. User-facing behavior changes belong in the browser tests in `e2e/extension.spec.ts`; other reusable tests should stay with the existing tests for that subsystem. Use deterministic fixtures where possible.
 
 Write code comments and documentation in English. Keep English and Simplified Chinese interface messages in sync in `src/options/i18n.ts` and `src/panel/i18n.tsx` when changing the affected surface. Check both languages for layout changes.

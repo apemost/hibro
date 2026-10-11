@@ -5,7 +5,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChartConfiguration, Point } from 'chart.js';
 import type { CustomRenderer, CustomRendererProps } from 'streamdown';
 import { z } from 'zod';
-import { PartStreamingContext } from './partStreaming';
+import { PartStreamingContext } from './part-streaming';
 import { usePanelI18n } from './i18n';
 
 const chartTypeSchema = z.enum(['bar', 'line', 'pie', 'scatter']);
@@ -87,7 +87,7 @@ type ChartJsConfiguration = ChartConfiguration<
   ChartJsDatum[],
   string
 >;
-type ChartJsRuntime = typeof import('./chartJsRuntime');
+type ChartJsRuntime = typeof import('./chart-js-runtime');
 type ChartJsInstance = InstanceType<ChartJsRuntime['Chart']>;
 type ChartTheme = 'light' | 'dark';
 
@@ -132,7 +132,7 @@ function parseHibroChartSpec(code: string): ParseResult {
 let chartJsPromise: Promise<ChartJsRuntime> | null = null;
 
 const loadChartJs = (): Promise<ChartJsRuntime> =>
-  (chartJsPromise ??= import('./chartJsRuntime'));
+  (chartJsPromise ??= import('./chart-js-runtime'));
 
 const chartPalette = [
   { border: '#2563eb', fill: 'rgba(37, 99, 235, 0.45)' },

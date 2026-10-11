@@ -9,10 +9,10 @@ import {
   MessageResponse,
 } from '@/components/ai-elements/message';
 import { Tool } from '@/components/ai-elements/tool';
-import { ConversationDrawer } from './ConversationDrawer';
-import { MessageActions } from './MessageActions';
-import { ProviderPicker } from './ProviderPicker';
-import { useProviders } from './useProviders';
+import { ConversationDrawer } from './conversation-drawer';
+import { MessageActions } from './message-actions';
+import { ProviderPicker } from './provider-picker';
+import { useProviders } from './use-providers';
 import { cn } from '@/lib/utils';
 import type { HibroPart } from '@/shared/protocol';
 import {
@@ -25,13 +25,13 @@ import {
   useState,
 } from 'react';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
-import { useHibroChat } from './useHibroChat';
-import { useInputHistory } from './useInputHistory';
+import { useHibroChat } from './use-hibro-chat';
+import { useInputHistory } from './use-input-history';
 import { deriveTitle } from '@/shared/conversations';
-import { PartStreamingContext } from './partStreaming';
+import { PartStreamingContext } from './part-streaming';
 import { PanelI18nProvider, usePanelI18n } from './i18n';
-import { ImageAsset } from './ImageAsset';
-import { SettingsIcon } from './SettingsIcon';
+import { ImageAsset } from './image-asset';
+import { SettingsIcon } from './settings-icon';
 
 const MAX_INPUT_HEIGHT = 400;
 const INPUT_RESIZE_STEP = 24;

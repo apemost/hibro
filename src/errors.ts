@@ -1,6 +1,6 @@
 // User-facing error text for the service worker's panel-facing surfaces.
 
-import { ProviderVaultError } from './shared/providerVault';
+import { ProviderVaultError } from './shared/provider-vault';
 
 /** Thrown when the provider data-use notice has not been accepted yet. */
 export class ProviderConsentRequiredError extends Error {}

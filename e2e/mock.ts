@@ -26,6 +26,8 @@ export interface MockServer {
   // Each last-user-message text received on a unified-loop call, in order.
   // Lets e2e assert what page context (overview, page-change marker) was sent.
   userMessages: string[];
+  // Translation payloads, to verify which page text leaves the browser.
+  translationMessages: string[];
   // Tool names exposed to the model on each agent request.
   toolNames: string[][];
   // Requests made by model-rendered image content.
@@ -340,6 +342,7 @@ export async function startMock(): Promise<MockServer> {
   const authorizationHeaders: string[] = [];
   const systems: string[] = [];
   const userMessages: string[] = [];
+  const translationMessages: string[] = [];
   const toolNames: string[][] = [];
   let imageRequests = 0;
   let agentScript: AgentScriptCall[] = [];
@@ -410,6 +413,7 @@ export async function startMock(): Promise<MockServer> {
         // Page translation: one non-streaming batch of marked segments.
         if (sys.includes('You translate web page text into')) {
           stats.translate++;
+          translationMessages.push(lastUser);
           json(translateSegments(lastUser));
           return;
         }
@@ -666,6 +670,7 @@ export async function startMock(): Promise<MockServer> {
     authorizationHeaders,
     systems,
     userMessages,
+    translationMessages,
     toolNames,
     get imageRequests() {
       return imageRequests;

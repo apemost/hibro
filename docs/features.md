@@ -24,9 +24,15 @@ Open the toolbar menu, choose a language, and click the translate button. Transl
 
 Hibro translates the main content, including paragraphs, headings, lists, and tables. It skips navigation, sidebars, footers, code blocks, and hidden text. Very long pages may be translated only in part.
 
+On GitHub source-file pages (`github.com/.../blob/...`), Hibro translates only standalone syntax-highlighted code comments. Comments appended after code, including block comments that continue onto later lines, stay unchanged and are not sent for translation. Consecutive standalone comment lines are translated together, with a multiline translation below the original group. Line comments repeat their marker, such as `//`, on every translated line. Block comments keep their opening and closing markers and use continuation lines, such as ` * text`. The translation uses GitHub's comment coloring and follows the original comment width, splitting into shorter lines when needed to fit the code area. Copied translations keep these line breaks and markers. They have no line numbers; the original code and its line numbers move together to make room. Code, strings, and source line numbers stay unchanged, and showing the original restores the layout. This uses the same translate button and chat tool; files without highlighted standalone comments and diff views are not supported.
+
+Each translated line keeps the original comment group's indentation, including tabs and spaces. Resizing the code area preserves that alignment when the text is split into new lines.
+
+Block comments retain their original line style: a single-line `/** text */` stays on one line, while a multiline block keeps its opening, continuation, and closing lines. As with long source-code lines, a long single-line translation may require horizontal scrolling.
+
 The target language follows your interface language until you choose another. You can change it in the toolbar menu or Settings under General. You can also ask in chat, such as "translate this page into Japanese," including languages outside the Settings list.
 
-Translation sends page text to your selected provider. The open tab remembers the result, so showing the same translation again needs no new request. Reloading or closing the page clears that copy. A different language or changed page content may require a new translation. See [translation privacy](privacy.md#page-translation) for details.
+Translation sends page text to your selected provider. The open tab remembers the result, so showing the same translation again needs no new request. Reloading or closing the page clears that copy. A different language, navigation to another page within the same tab, or changed source text requires a new translation. Jumping to a section on the same page keeps the cached translation. See [translation privacy](privacy.md#page-translation) for details.
 
 ## Conversations
 

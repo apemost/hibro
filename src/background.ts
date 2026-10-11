@@ -12,13 +12,13 @@ import { cdpClick, cdpType, cdpScroll, cdpNavigate, cdpPressKey } from './cdp';
 import type { HibroHistoryMessage, PanelEvent } from './shared/protocol';
 import { ProviderConsentRequiredError, friendlyError } from './errors';
 import { callAI, getModel } from './model';
-import { sendToTab } from './tabMessaging';
+import { sendToTab } from './tab-messaging';
 import {
   normalizeImageMediaType,
   decodeImageBase64,
-} from './shared/imageAssets';
-import { REMOTE_IMAGE_PORT } from './shared/remoteImages';
-import { attachRemoteImagePort } from './remoteImages';
+} from './shared/image-assets';
+import { REMOTE_IMAGE_PORT } from './shared/remote-images';
+import { attachRemoteImagePort } from './remote-images';
 import { TRANSLATE_PORT } from './shared/translation';
 import {
   attachTranslatePort,

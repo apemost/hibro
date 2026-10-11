@@ -6,10 +6,10 @@
 // panel, and Markdown rendering uses Streamdown without Shiki.
 
 import { cn } from '@/lib/utils';
-import { chartRenderer } from '@/panel/ChartBlock';
-import { htmlRenderer } from '@/panel/HtmlBlock';
-import { hibroMermaid } from '@/panel/mermaidPlugin';
-import { RemoteMarkdownImage } from '@/panel/RemoteMarkdownImage';
+import { chartRenderer } from '@/panel/chart-block';
+import { htmlRenderer } from '@/panel/html-block';
+import { hibroMermaid } from '@/panel/mermaid-plugin';
+import { RemoteMarkdownImage } from '@/panel/remote-markdown-image';
 import { cjk } from '@streamdown/cjk';
 import { math } from '@streamdown/math';
 import type { UIMessage } from 'ai';

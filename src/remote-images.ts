@@ -6,14 +6,14 @@ import {
   imageBytesToBase64,
   normalizeImageMediaType,
   type HibroImageMediaType,
-} from './shared/imageAssets';
+} from './shared/image-assets';
 import {
   type RemoteImageErrorCode,
   type RemoteImageRequest,
   type RemoteImageResult,
   validateRemoteImageUrl,
-} from './shared/remoteImages';
-import { PANEL_PAGE_PATH, isTrustedExtensionPort } from './panelPort';
+} from './shared/remote-images';
+import { PANEL_PAGE_PATH, isTrustedExtensionPort } from './panel-port';
 
 const REMOTE_IMAGE_TIMEOUT_MS = 15_000;
 

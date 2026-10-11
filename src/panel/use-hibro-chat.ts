@@ -20,7 +20,7 @@ import {
   upsertConversation,
   writeActiveConversation,
 } from '@/shared/conversations';
-import { getActiveTab } from './activeTab';
+import { getActiveTab } from './active-tab';
 
 export type ChatStatus = 'ready' | 'streaming';
 

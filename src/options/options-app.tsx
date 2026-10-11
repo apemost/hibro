@@ -15,7 +15,7 @@ import {
   writeProfiles,
 } from '@/shared/providers';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { SkillActionsMenu } from './SkillActionsMenu';
+import { SkillActionsMenu } from './skill-actions-menu';
 import {
   DEFAULT_OPTIONS_LANGUAGE,
   OPTIONS_KEY,

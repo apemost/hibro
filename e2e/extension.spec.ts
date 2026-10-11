@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect } from './fixtures';
 import { startMock, type MockServer } from './mock';
+import { githubCodePage } from './github-code';
 import { configureProvider as configureEvalProvider } from '../eval/configure-provider.mjs';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -2291,6 +2292,532 @@ test('translate toggle renders translations under the page body blocks', async (
   await fixture.close();
 });
 
+for (const layout of ['react', 'flow', 'nonvirtual', 'table'] as const) {
+  test(`GitHub ${layout} file translation groups comments below source with aligned line numbers`, async ({
+    browserContext,
+    extensionId,
+  }) => {
+    const fixture = await browserContext.newPage();
+    const popup = await browserContext.newPage();
+    const options = await browserContext.newPage();
+    try {
+      await options.goto(`chrome-extension://${extensionId}/src/options.html`);
+      await addProvider(options, {
+        name: `GitHub ${layout}`,
+        type: 'openai-compatible',
+        baseUrl: `http://127.0.0.1:${mock.port}`,
+        apiKey: 'test-key',
+        model: 'test-model',
+      });
+      const activate = options
+        .locator('#providerList .provider-row', {
+          hasText: `GitHub ${layout}`,
+        })
+        .locator('button[data-activate]');
+      if (await activate.count()) await activate.click();
+      await fixture.route('https://github.com/**', (route) =>
+        route.fulfill({
+          contentType: 'text/html',
+          body: githubCodePage(layout),
+        }),
+      );
+      await fixture.goto(
+        'https://github.com/moby/sys/blob/main/mountinfo/mounted_linux.go',
+      );
+      const sourceDOM = () =>
+        fixture.locator('main').evaluate((root) =>
+          [...root.querySelectorAll<HTMLElement>('*')].map((el) => ({
+            tag: el.tagName,
+            attributes: Object.fromEntries(
+              [...el.attributes].map((attr) => [
+                attr.name,
+                attr.name === 'style' ? el.style.cssText : attr.value,
+              ]),
+            ),
+            children: [...el.childNodes].map((node) =>
+              node.nodeType === Node.TEXT_NODE ? node.textContent : null,
+            ),
+          })),
+        );
+      const original = await sourceDOM();
+      const positions = () =>
+        fixture.locator('[id^="LC"]').evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            return { id: node.id, y: rect.y, height: rect.height };
+          }),
+        );
+      const beforePositions = await positions();
+      await popup.goto(`chrome-extension://${extensionId}/src/popup.html`);
+      await fixture.bringToFront();
+      const before = mock.translationMessages.length;
+      const toggle = popup.locator('#popupTranslateBtn');
+      await expect(toggle).toBeEnabled();
+      await toggle.click();
+      await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(2);
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(mock.translationMessages.slice(before).join('\n')).toBe(
+        [
+          '[[1]] Detect a mount point. Return an error if the path is missing.',
+          '[[2]] A block comment with nested highlighting',
+        ].join('\n'),
+      );
+      const [paragraph, block] = await fixture
+        .locator('[data-hibro-translation]')
+        .allTextContents();
+      const paragraphLines = paragraph.split('\n');
+      expect(paragraphLines.length).toBeGreaterThan(1);
+      expect(paragraphLines.every((line) => line.startsWith('\t// '))).toBe(
+        true,
+      );
+      expect(paragraphLines.map((line) => line.slice(4)).join(' ')).toBe(
+        'ZH:Detect a mount point. Return an error if the path is missing.',
+      );
+      await expect(
+        fixture.locator(
+          '#LC5 [data-hibro-translation], #LC6 [data-hibro-translation], #LC7 [data-hibro-translation]',
+        ),
+      ).toHaveCount(0);
+      const blockLines = block.split('\n');
+      expect(blockLines[0]).toBe('  /*');
+      expect(blockLines.at(-1)).toBe('   */');
+      expect(
+        blockLines.slice(1, -1).every((line) => line.startsWith('   * ')),
+      ).toBe(true);
+      expect(
+        blockLines
+          .slice(1, -1)
+          .map((line) => line.slice(5))
+          .join(' '),
+      ).toBe('ZH:A block comment with nested highlighting');
+      await expect(fixture.locator('#LC4')).toHaveText(
+        'url := "https://example.com//not-a-comment"',
+      );
+      await expect(fixture.locator('#LC12')).toHaveText('return true, nil');
+      if (layout === 'react') {
+        await expect(
+          fixture.getByRole('textbox', { name: 'file content' }),
+        ).toHaveValue('Original source buffer');
+      }
+      const layoutState = () =>
+        fixture.evaluate(() => {
+          const lines = [
+            ...document.querySelectorAll<HTMLElement>('[id^="LC"]'),
+          ];
+          const numbers = [
+            ...document.querySelectorAll<HTMLElement>(
+              '.react-line-number, .blob-num',
+            ),
+          ];
+          const rects = lines.map((el) => el.getBoundingClientRect());
+          const translations = [
+            ...document.querySelectorAll<HTMLElement>(
+              '[data-hibro-translation]',
+            ),
+          ];
+          const markerLeft = (el: Element, start: number) => {
+            const range = document.createRange();
+            range.setStart(el.firstChild!, start);
+            range.setEnd(el.firstChild!, start + 1);
+            return range.getBoundingClientRect().left;
+          };
+          const paragraph = document.querySelector(
+            '#LC2 > [data-hibro-translation]',
+          )!;
+          const originalLeft = document
+            .querySelector('#LC1 > .pl-c')!
+            .getBoundingClientRect().left;
+          let offset = 0;
+          const indentAligned = paragraph
+            .textContent!.split('\n')
+            .every((line) => {
+              const aligned =
+                Math.abs(
+                  markerLeft(paragraph, offset + line.search(/\S/)) -
+                    originalLeft,
+                ) < 1;
+              offset += line.length + 1;
+              return aligned;
+            });
+          return {
+            indentAligned,
+            numbers: numbers.map((el) => el.getAttribute('data-line-number')),
+            aligned: numbers.every(
+              (el, i) =>
+                Math.abs(el.getBoundingClientRect().top - rects[i].top) < 1,
+            ),
+            noOverlap: rects.every(
+              (rect, i) => !i || rect.top >= rects[i - 1].bottom - 1,
+            ),
+            anchors: translations.map((el) => el.parentElement?.id),
+            below: translations.every(
+              (el) =>
+                el.getBoundingClientRect().top >=
+                el.parentElement!.getBoundingClientRect().top + 20,
+            ),
+            widths: translations.map((el) => el.getBoundingClientRect().width),
+            heights: translations.map(
+              (el) => el.getBoundingClientRect().height,
+            ),
+            scrollWidth: document.querySelector('.code-scroller')!.clientWidth,
+            linesFit: translations.every(
+              (el) => el.scrollWidth <= el.clientWidth + 1,
+            ),
+            firstLineCount: translations[0].textContent!.split('\n').length,
+          };
+        });
+      await expect
+        .poll(async () => {
+          const state = await layoutState();
+          return (
+            state.aligned &&
+            state.noOverlap &&
+            state.below &&
+            state.linesFit &&
+            state.indentAligned
+          );
+        })
+        .toBe(true);
+      const wide = await layoutState();
+      if (layout === 'nonvirtual') {
+        // Natural-height columns must not count translation space twice.
+        const extraSpace = await fixture.evaluate(() => {
+          const root = document.querySelector('.react-code-file-contents')!;
+          const last = document.querySelector('#LC12')!;
+          return (
+            root.getBoundingClientRect().bottom -
+            last.getBoundingClientRect().bottom
+          );
+        });
+        // The two invisible duplicate rows still occupy 40px of flow space.
+        expect(Math.abs(extraSpace - 40)).toBeLessThan(1);
+        expect(
+          await fixture
+            .locator('.react-line-number')
+            .last()
+            .evaluate((el) => {
+              const rect = el.getBoundingClientRect();
+              const hit = document.elementFromPoint(
+                rect.left + rect.width / 2,
+                rect.top + rect.height / 2,
+              );
+              return hit === el || el.contains(hit);
+            }),
+        ).toBe(true);
+      }
+
+      expect(
+        await fixture
+          .locator('[data-hibro-translation]')
+          .evaluateAll((nodes) =>
+            nodes.every(
+              (node) =>
+                getComputedStyle(node).color ===
+                getComputedStyle(
+                  node.parentElement!.querySelector(
+                    '.pl-c:not([data-hibro-translation])',
+                  )!,
+                ).color,
+            ),
+          ),
+      ).toBe(true);
+      expect(wide.numbers).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '10',
+        '11',
+        '12',
+      ]);
+      expect(wide.anchors).toEqual(['LC2', 'LC11']);
+      await fixture.setViewportSize({ width: 280, height: 720 });
+      await expect
+        .poll(async () => {
+          const narrow = await layoutState();
+          return {
+            aligned: narrow.aligned,
+            indentAligned: narrow.indentAligned,
+            noOverlap: narrow.noOverlap,
+            linesFit: narrow.linesFit,
+            moreLines: narrow.firstLineCount > wide.firstLineCount,
+            boundedWidth: narrow.widths.every((w) => w < narrow.scrollWidth),
+            taller: narrow.heights[0] > wide.heights[0],
+          };
+        })
+        .toEqual({
+          aligned: true,
+          indentAligned: true,
+          noOverlap: true,
+          linesFit: true,
+          moreLines: true,
+          boundedWidth: true,
+          taller: true,
+        });
+      const translatedPositions = await positions();
+      if (layout === 'react') {
+        await fixture
+          .locator('#LC4')
+          .dblclick({ position: { x: 10, y: 10 }, timeout: 5000 });
+        expect(
+          await fixture.evaluate(() => window.getSelection()?.toString()),
+        ).toBe('url');
+      }
+      const requests = mock.stats.translate;
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(await sourceDOM()).toEqual(original);
+      expect(await positions()).toEqual(beforePositions);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(2);
+      expect(mock.stats.translate).toBe(requests);
+      await expect.poll(positions).toEqual(translatedPositions);
+      if (layout === 'react' || layout === 'nonvirtual') {
+        // Folding and expanding in GitHub recreates source rows. The same
+        // source must regain its translation without another provider call.
+        await fixture.evaluate(() => {
+          const row = document.querySelector('#LC2')!;
+          const replacement = row.cloneNode(true) as HTMLElement;
+          replacement.querySelector('[data-hibro-translation]')?.remove();
+          replacement.setAttribute('inert', '');
+          replacement.removeAttribute('data-hibro-block');
+          row.replaceWith(replacement);
+        });
+        await expect(
+          fixture.locator('#LC2 > [data-hibro-translation]'),
+        ).toHaveCount(1);
+        await expect.poll(positions).toEqual(translatedPositions);
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        await expect(fixture.locator('[data-hibro-translation]')).toHaveCount(
+          2,
+        );
+        expect(mock.stats.translate).toBe(requests);
+      }
+      const multilingual =
+        '这段注释需要按实际字符宽度分行，并保留完整的组合表情 👩‍💻。'.repeat(8) +
+        ' 路径 /proc/mounts '.repeat(6) +
+        ' identifier' +
+        'x'.repeat(100);
+      await options.evaluate(
+        async ({ url, text }) => {
+          const [tab] = await chrome.tabs.query({ url });
+          const { blocks } = await chrome.tabs.sendMessage(tab.id!, {
+            type: 'hibro:translate-collect',
+          });
+          await chrome.tabs.sendMessage(tab.id!, {
+            type: 'hibro:translate-apply',
+            target: 'Simplified Chinese',
+            language: 'zh-CN',
+            items: [{ id: blocks[0].id, text }],
+          });
+        },
+        { url: fixture.url(), text: multilingual },
+      );
+      const multilingualNode = fixture.locator('[data-hibro-translation]');
+      const rendered = await multilingualNode.textContent();
+      const multilingualLines = rendered!.split('\n');
+      expect(multilingualLines.length).toBeGreaterThan(2);
+      expect(multilingualLines.every((line) => line.startsWith('\t// '))).toBe(
+        true,
+      );
+      expect(
+        multilingualLines
+          .map((line) => line.slice(4))
+          .join('')
+          .replace(/\s/g, ''),
+      ).toBe(multilingual.replace(/\s/g, ''));
+      expect([...rendered!.matchAll(/👩‍💻/gu)]).toHaveLength(8);
+      expect([...rendered!.matchAll(/\/proc\/mounts/gu)]).toHaveLength(6);
+      expect(
+        await multilingualNode.evaluate(
+          (el) => el.scrollWidth <= el.clientWidth + 1,
+        ),
+      ).toBe(true);
+    } finally {
+      await options.close();
+      await popup.close();
+      await fixture.close();
+    }
+  });
+}
+
+test('GitHub block comments preserve their original single-line or multiline style', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const fixture = await browserContext.newPage();
+  const control = await browserContext.newPage();
+  const url = 'https://github.com/example/repo/blob/main/runner.ts';
+  try {
+    await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+    await fixture.route(url, (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: githubCodePage('react', [
+          '<span class="pl-c">/**</span>',
+          '<span class="pl-c"> * Read the runner streams.</span>',
+          '<span class="pl-c"> */</span>',
+          '\n',
+          '<span class="pl-c">/** Read one stream. */</span>',
+          'export const runner = {};',
+        ]),
+      }),
+    );
+    await fixture.goto(url);
+    await expect
+      .poll(() =>
+        control.evaluate(async (url) => {
+          const [tab] = await chrome.tabs.query({ url });
+          return chrome.tabs
+            .sendMessage(tab.id!, { type: 'hibro:translate-collect' })
+            .then(
+              (result) => result.blocks.length,
+              () => 0,
+            );
+        }, url),
+      )
+      .toBe(2);
+    await control.evaluate(async (url) => {
+      const [tab] = await chrome.tabs.query({ url });
+      await chrome.tabs.sendMessage(tab.id!, {
+        type: 'hibro:translate-apply',
+        target: 'Simplified Chinese',
+        language: 'zh-CN',
+        items: [
+          { id: 1, text: '读取运行器的流。' },
+          { id: 2, text: '读取一个流。' },
+        ],
+      });
+    }, url);
+    expect(
+      await fixture.locator('#LC3 > [data-hibro-translation]').textContent(),
+    ).toBe('/**\n * 读取运行器的流。\n */');
+    expect(
+      await fixture.locator('#LC5 > [data-hibro-translation]').textContent(),
+    ).toBe('/** 读取一个流。 */');
+    const checkGutter = () =>
+      fixture.evaluate(() => {
+        const translations = [
+          ...document.querySelectorAll('[data-hibro-translation]'),
+        ].map((el) => el.getBoundingClientRect());
+        const misaligned: unknown[] = [];
+        const numbered: unknown[] = [];
+        for (const number of document.querySelectorAll<HTMLElement>(
+          '.react-line-number',
+        )) {
+          const rect = number.getBoundingClientRect();
+          const row = document
+            .querySelector(`#LC${number.dataset.lineNumber}`)!
+            .getBoundingClientRect();
+          if (Math.abs(row.top - rect.top) >= 1)
+            misaligned.push({
+              line: number.dataset.lineNumber,
+              code: row.top,
+              number: rect.top,
+            });
+          // Test the label's center: a transform may place the box edge a
+          // fraction of a pixel across a boundary without moving the label.
+          const center = rect.top + rect.height / 2;
+          for (const t of translations)
+            if (center >= t.top && center < t.bottom)
+              numbered.push({
+                line: number.dataset.lineNumber,
+                top: rect.top,
+                center: rect.top + rect.height / 2,
+                translationTop: t.top,
+                translationBottom: t.bottom,
+              });
+        }
+        return { misaligned, numbered };
+      });
+    await expect.poll(checkGutter).toEqual({ misaligned: [], numbered: [] });
+    await control.evaluate(async (url) => {
+      const [tab] = await chrome.tabs.query({ url });
+      await chrome.tabs.sendMessage(tab.id!, {
+        type: 'hibro:translate-revert',
+      });
+      await chrome.tabs.sendMessage(tab.id!, {
+        type: 'hibro:translate-restore',
+        target: 'Simplified Chinese',
+      });
+    }, url);
+    expect(
+      await fixture.locator('#LC5 > [data-hibro-translation]').textContent(),
+    ).toBe('/** 读取一个流。 */');
+    await expect.poll(checkGutter).toEqual({ misaligned: [], numbered: [] });
+  } finally {
+    await fixture.close();
+    await control.close();
+  }
+});
+
+test('GitHub comment translation stays within highlighted source-file views', async ({
+  browserContext,
+  extensionId,
+}) => {
+  const fixture = await browserContext.newPage();
+  const control = await browserContext.newPage();
+  try {
+    await control.goto(`chrome-extension://${extensionId}/src/options.html`);
+    for (const { url, highlighted, expected } of [
+      {
+        url: 'https://github.com/example/repo/blob/main/plain.go',
+        highlighted: false,
+        expected: [],
+      },
+      {
+        url: 'https://github.com/example/repo/issues/1',
+        highlighted: true,
+        expected: ['example.go'],
+      },
+      {
+        url: 'https://example.org/example/repo/blob/main/file.go',
+        highlighted: true,
+        expected: ['example.go'],
+      },
+    ]) {
+      await fixture.route(url, (route) =>
+        route.fulfill({
+          contentType: 'text/html',
+          body: highlighted
+            ? githubCodePage('react')
+            : githubCodePage('react').replaceAll(
+                'class="pl-c"',
+                'class="plain"',
+              ),
+        }),
+      );
+      await fixture.goto(url);
+      await expect
+        .poll(() =>
+          control.evaluate(async (url) => {
+            const [tab] = await chrome.tabs.query({ url });
+            return chrome.tabs
+              .sendMessage(tab.id!, { type: 'hibro:translate-collect' })
+              .then(
+                (result) =>
+                  result.blocks.map((block: { text: string }) => block.text),
+                () => null,
+              );
+          }, url),
+        )
+        .toEqual(expected);
+    }
+  } finally {
+    await fixture.close();
+    await control.close();
+  }
+});
+
 test('showing the original again keeps the translation for the same language', async ({
   browserContext,
   extensionId,
@@ -2524,7 +3051,7 @@ test('chat renders mermaid diagrams and chart blocks', async ({
   // window, so wait for the swap back before sending the next message.
   await expect(panel.locator('#sendBtn')).toBeVisible();
   const chartBundleRequest = browserContext.waitForEvent('request', {
-    predicate: (request) => /\/chartJsRuntime-[^/]+\.js$/.test(request.url()),
+    predicate: (request) => /\/chart-js-runtime-[^/]+\.js$/.test(request.url()),
   });
   await panel.fill('#input', 'show a chart of quarterly numbers');
   await panel.press('#input', 'Enter');
@@ -2548,7 +3075,7 @@ test('chat renders mermaid diagrams and chart blocks', async ({
     )
     .toBe(true);
   expect((await chartBundleRequest).url()).toMatch(
-    /\/chartJsRuntime-[^/]+\.js$/,
+    /\/chart-js-runtime-[^/]+\.js$/,
   );
 
   // A broken spec falls back to the raw code with a note instead of crashing.

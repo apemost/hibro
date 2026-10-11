@@ -2,7 +2,7 @@ import {
   MAX_IMAGE_DIMENSION,
   MAX_IMAGE_PIXELS,
   decodeImageBase64,
-} from '@/shared/imageAssets';
+} from '@/shared/image-assets';
 import type { HibroPart } from '@/shared/protocol';
 import { useEffect, useState } from 'react';
 import { usePanelI18n } from './i18n';

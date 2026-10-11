@@ -44,6 +44,8 @@ Review and accept the data-use notice in Settings before using an AI provider. Y
 
 Translation sends the main page text to your selected provider, including any private information in that text.
 
+On GitHub source-file pages, translation sends standalone highlighted comments instead of the surrounding code or comments appended after code. Comments from private repositories may contain private information too.
+
 Showing the original hides the translations but keeps a copy in the open tab. Hibro can reuse that copy for the same language. Reloading or closing the page clears it. The translation feature does not save its results in extension storage.
 
 Translations are inserted into the page, where the website's scripts can read them. Websites can also read text Hibro enters into their forms.

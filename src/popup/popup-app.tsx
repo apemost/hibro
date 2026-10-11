@@ -4,8 +4,8 @@
 
 import { useEffect, useState } from 'react';
 import { PanelI18nProvider, usePanelI18n } from '@/panel/i18n';
-import { SettingsIcon } from '@/panel/SettingsIcon';
-import { usePageTranslation } from './useTranslation';
+import { SettingsIcon } from '@/panel/settings-icon';
+import { usePageTranslation } from './use-translation';
 import {
   HIBRO_OPTIONS_KEY,
   TRANSLATION_LANGUAGES,

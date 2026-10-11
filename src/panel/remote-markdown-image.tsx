@@ -1,12 +1,12 @@
-import { decodeImageBase64 } from '@/shared/imageAssets';
+import { decodeImageBase64 } from '@/shared/image-assets';
 import {
   REMOTE_IMAGE_PORT,
   type RemoteImageRequest,
   type RemoteImageResult,
   validateRemoteImageUrl,
-} from '@/shared/remoteImages';
+} from '@/shared/remote-images';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { validateImageBlob } from './ImageAsset';
+import { validateImageBlob } from './image-asset';
 import { usePanelI18n } from './i18n';
 
 type RemoteImageState = 'ready' | 'loading' | 'loaded' | 'error';

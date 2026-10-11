@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TRANSLATE_PORT, type TranslateEvent } from '@/shared/translation';
-import { getActiveTab } from '@/panel/activeTab';
+import { getActiveTab } from '@/panel/active-tab';
 
 export type TranslationStatus = 'idle' | 'working' | 'active';
 

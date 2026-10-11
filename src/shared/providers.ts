@@ -7,7 +7,7 @@ import {
   rejectProviderEnvelope,
   sealProviderProfiles,
   validateProviderProfiles,
-} from './providerVault';
+} from './provider-vault';
 
 export type ProviderType = 'openai-compatible' | 'openai' | 'anthropic';
 

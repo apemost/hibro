@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import {
   decodeImageBase64,
   normalizeImageMediaType,
-} from '../src/shared/imageAssets';
-import { validateRemoteImageUrl } from '../src/shared/remoteImages';
+} from '../src/shared/image-assets';
+import { validateRemoteImageUrl } from '../src/shared/remote-images';
 
 const ONE_PIXEL_PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';

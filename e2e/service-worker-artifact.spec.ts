@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { Script } from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 
@@ -29,4 +30,17 @@ test('lazy Chart.js bundle stays tree-shaken', () => {
 
   const bytes = statSync(path.join(assetsDirectory, chartBundles[0])).size;
   expect(bytes).toBeLessThan(190_000);
+});
+
+test('content script stays a single independently injectable classic script', () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(dist, 'manifest.json'), 'utf8'),
+  );
+  const scripts = manifest.content_scripts.flatMap(
+    (entry: { js: string[] }) => entry.js,
+  );
+  expect(scripts).toHaveLength(1);
+  const content = readFileSync(path.join(dist, scripts[0]), 'utf8');
+  expect(() => new Script(content)).not.toThrow();
+  expect(content).not.toMatch(/\bimport\s*\(/);
 });

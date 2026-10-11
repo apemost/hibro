@@ -9,8 +9,8 @@ import {
   PANEL_PAGE_PATH,
   POPUP_PAGE_PATH,
   isTrustedExtensionPort,
-} from './panelPort';
-import { probeTab, sendToTab } from './tabMessaging';
+} from './panel-port';
+import { probeTab, sendToTab } from './tab-messaging';
 import {
   TRANSLATION_LANGUAGES,
   readTranslationTarget,

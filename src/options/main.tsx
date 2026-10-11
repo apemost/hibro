@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { OptionsApp } from './OptionsApp';
+import { OptionsApp } from './options-app';
 
 const root = document.getElementById('root');
 if (root) {
