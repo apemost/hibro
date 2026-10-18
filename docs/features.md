@@ -69,7 +69,7 @@ Remote images must use HTTPS and meet the same file limits. Some addresses and r
 
 Open Settings from the gear in the panel or toolbar menu. You can save several provider profiles and switch between them in Settings or beside the chat input. The next request uses the selected provider. See [Provider setup](providers.md) for supported services and required fields.
 
-Settings and the side panel support English and Simplified Chinese. Choose the interface language under General in Settings. Existing conversations, provider names, skill instructions, and action results keep their original text.
+Settings and the side panel support English and Simplified Chinese. Choose the interface language using Display Language under General. Existing conversations, provider names, skill instructions, and action results keep their original text.
 
 ## Site skills
 

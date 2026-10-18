@@ -392,7 +392,9 @@ function PanelApp() {
                           {m.errorAction === 'open-provider-settings' && (
                             <a
                               className="error-action"
-                              href={chrome.runtime.getURL('src/options.html')}
+                              href={chrome.runtime.getURL(
+                                'src/options.html#config',
+                              )}
                               target="_blank"
                               rel="noreferrer"
                             >

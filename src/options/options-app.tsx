@@ -92,7 +92,9 @@ export function OptionsApp() {
   const providerDialogRef = useRef<HTMLDialogElement>(null);
 
   // Tabs and skills
-  const [tab, setTab] = useState<OptionsTab>('config');
+  const [tab, setTab] = useState<OptionsTab>(() =>
+    window.location.hash === '#config' ? 'config' : 'general',
+  );
   const [builtins] = useState(() => getBuiltinSkillMeta());
   const [users, setUsers] = useState<StoredUserSkill[]>([]);
   const [skillState, setSkillState] = useState<SkillState>({});

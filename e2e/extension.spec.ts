@@ -377,6 +377,7 @@ test('legacy single-provider config migrates and remains usable', async ({
     }, `http://127.0.0.1:${mock.port}`);
     await page.reload();
 
+    await page.getByRole('tab', { name: 'LLM providers' }).click();
     const migratedRow = page.locator('#providerList .provider-row');
     await expect(migratedRow).toHaveCount(1);
     await expect(migratedRow).toContainText('Default');
@@ -451,6 +452,7 @@ test('plaintext provider profiles migrate to encrypted storage and remain usable
     }, baseUrl);
     await page.reload();
 
+    await page.getByRole('tab', { name: 'LLM providers' }).click();
     const row = page.locator('#providerList .provider-row');
     await expect(row).toHaveCount(1);
     await expect(row).toContainText('Plaintext upgrade');
@@ -554,6 +556,7 @@ test('options encrypt provider profiles and sync open extension surfaces', async
   try {
     await writer.goto(`chrome-extension://${extensionId}/src/options.html`);
     await observer.goto(`chrome-extension://${extensionId}/src/options.html`);
+    await observer.getByRole('tab', { name: 'LLM providers' }).click();
     await addProvider(writer, {
       name: 'Mock',
       type: 'openai-compatible',
@@ -602,6 +605,7 @@ test('options encrypt provider profiles and sync open extension surfaces', async
     });
 
     await writer.reload();
+    await writer.getByRole('tab', { name: 'LLM providers' }).click();
     const reloadedRow = writer.locator('#providerList .provider-row', {
       hasText: 'Mock',
     });
@@ -639,7 +643,7 @@ test('privacy-consent errors link directly to provider settings', async ({
   });
   await options.getByRole('tab', { name: 'General' }).click();
   await selectValue(
-    options.getByRole('combobox', { name: 'Language', exact: true }),
+    options.getByRole('combobox', { name: 'Display Language', exact: true }),
     'zh-CN',
   );
   await options.evaluate(async () =>
@@ -832,6 +836,7 @@ test('unreadable provider storage is reported without being overwritten', async 
       await chrome.storage.local.set({ hibroProviders: value });
     }, unreadable);
     await page.reload();
+    await page.getByRole('tab', { name: 'LLM providers' }).click();
     await expect(page.getByRole('alert')).toContainText(
       'Hibro couldn’t unlock the saved LLM providers. The saved data was left unchanged.',
     );
@@ -863,9 +868,12 @@ test('options page switches to Chinese and remembers the language', async ({
   ).toBeVisible();
   const generalTab = page.getByRole('tab', { name: 'General' });
   const generalPanel = page.locator('#panel-general');
+  await expect(generalTab).toHaveAttribute('aria-selected', 'true');
+  await expect(generalPanel).toBeVisible();
   await expect(
     page.getByRole('tab', { name: 'LLM providers' }),
-  ).toHaveAttribute('aria-selected', 'true');
+  ).toHaveAttribute('aria-selected', 'false');
+  await page.getByRole('tab', { name: 'LLM providers' }).click();
   await expect(
     page.getByRole('note', { name: 'Before you connect' }),
   ).toContainText('messages, page address, content it reads');
@@ -885,11 +893,11 @@ test('options page switches to Chinese and remembers the language', async ({
   await generalTab.click();
   await expect(generalPanel).toBeVisible();
   const language = generalPanel.getByRole('combobox', {
-    name: 'Language',
+    name: 'Display Language',
     exact: true,
   });
   await expect(generalPanel.locator('label[for="optionsLanguage"]')).toHaveText(
-    'Language',
+    'Display Language',
   );
   await expect(
     generalPanel.getByText(
@@ -938,14 +946,14 @@ test('options page switches to Chinese and remembers the language', async ({
   await expect(
     reopened.getByRole('heading', { name: 'Hibro 设置' }),
   ).toBeVisible();
-  await expect(
-    reopened.getByRole('tab', { name: 'LLM 服务商' }),
-  ).toHaveAttribute('aria-selected', 'true');
-  await reopened.getByRole('tab', { name: '常规' }).click();
+  await expect(reopened.getByRole('tab', { name: '常规' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await expect(
     reopened
       .locator('#panel-general')
-      .getByRole('combobox', { name: '语言', exact: true }),
+      .getByRole('combobox', { name: '显示语言', exact: true }),
   ).toHaveAttribute('data-value', 'zh-CN');
   await reopened.evaluate(async () => {
     await chrome.storage.local.set({
@@ -1032,7 +1040,7 @@ test('Settings page does not scroll horizontally in either language', async ({
   expect(await horizontalOverflow(page)).toEqual({ page: 0, scrollers: [] });
   await page.getByRole('tab', { name: 'General' }).click();
   const language = page.getByRole('combobox', {
-    name: 'Language',
+    name: 'Display Language',
     exact: true,
   });
   await expect(language).toBeVisible();
@@ -1058,7 +1066,7 @@ test('Settings language setting updates an open side panel and persists', async 
   ).toBeVisible();
   await options.getByRole('tab', { name: 'General' }).click();
   const language = options.getByRole('combobox', {
-    name: 'Language',
+    name: 'Display Language',
     exact: true,
   });
   await expect(language).toBeVisible();
@@ -4536,12 +4544,13 @@ test('provider picker uses available toolbar width for long model names', async 
   await panel.close();
 });
 
-test('Settings opens on LLM providers', async ({
-  browserContext,
-  extensionId,
-}) => {
+test('Settings opens on General', async ({ browserContext, extensionId }) => {
   const first = await browserContext.newPage();
   await first.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await expect(first.getByRole('tab', { name: 'General' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await first.getByRole('tab', { name: 'Agent skills' }).click();
   await expect(
     first.getByRole('tab', { name: 'Agent skills' }),
@@ -4550,9 +4559,10 @@ test('Settings opens on LLM providers', async ({
 
   const reopened = await browserContext.newPage();
   await reopened.goto(`chrome-extension://${extensionId}/src/options.html`);
-  await expect(
-    reopened.getByRole('tab', { name: 'LLM providers' }),
-  ).toHaveAttribute('aria-selected', 'true');
+  await expect(reopened.getByRole('tab', { name: 'General' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await reopened.close();
 });
 
@@ -6164,6 +6174,7 @@ test('Hibro settings controls preserve labels, custom checkbox appearance and di
 }) => {
   const page = await browserContext.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/options.html`);
+  await page.getByRole('tab', { name: 'LLM providers' }).click();
   const consent = page.getByRole('checkbox', {
     name: 'I understand and agree to this data use.',
   });

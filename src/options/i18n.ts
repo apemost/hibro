@@ -89,7 +89,7 @@ interface OptionsMessages {
 export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
   en: {
     title: 'Hibro Settings',
-    language: 'Language',
+    language: 'Display Language',
     tabs: {
       general: 'General',
       providers: 'LLM providers',
@@ -175,7 +175,7 @@ export const OPTIONS_MESSAGES: Record<OptionsLanguage, OptionsMessages> = {
   },
   'zh-CN': {
     title: 'Hibro 设置',
-    language: '语言',
+    language: '显示语言',
     tabs: {
       general: '常规',
       providers: 'LLM 服务商',
