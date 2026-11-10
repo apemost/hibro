@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "version": "0.2.5",
   "type": "module",
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
     "release": "release-it",
     "dev": "vite",
