@@ -3056,6 +3056,40 @@ test('chat renders mermaid diagrams and chart blocks', async ({
     timeout: 30_000,
   });
 
+  const diagram = mermaidBlock.locator('[data-streamdown="mermaid"]');
+  const zoomIn = diagram.getByRole('button', { name: 'Zoom in', exact: true });
+  const navigation = zoomIn.locator('..');
+  await panel.locator('#input').hover();
+  await expect(navigation).toHaveCSS('opacity', '0');
+  await expect(navigation).toHaveCSS('pointer-events', 'none');
+  await diagram.hover();
+  await expect(navigation).toHaveCSS('opacity', '1');
+  await zoomIn.click();
+  await panel.locator('#input').focus();
+  await panel.locator('#input').hover();
+  await expect(navigation).toHaveCSS('opacity', '0');
+
+  // Invisible controls stay in the tab order and reveal themselves on focus.
+  await zoomIn.focus();
+  await panel.keyboard.press('Tab');
+  await expect(diagram.getByRole('button', { name: 'Zoom out' })).toBeFocused();
+  await expect(navigation).toHaveCSS('opacity', '1');
+  await panel.locator('#input').focus();
+
+  // A device without hover must retain visible navigation.
+  const touchSession = await browserContext.newCDPSession(panel);
+  try {
+    await touchSession.send('Emulation.setTouchEmulationEnabled', {
+      enabled: true,
+    });
+    await expect(navigation).toHaveCSS('opacity', '1');
+  } finally {
+    await touchSession.send('Emulation.setTouchEmulationEnabled', {
+      enabled: false,
+    });
+    await touchSession.detach();
+  }
+
   // Chart: a pure-JSON Hibro spec renders to a canvas once the fence closes.
   // Send swaps to Stop while a run is busy and onSubmit drops input in that
   // window, so wait for the swap back before sending the next message.

@@ -575,6 +575,21 @@ footer {
   overflow-y: auto;
 }
 
+/* Reveal diagram navigation on hover or focus; keep it visible on touch. */
+@media (hover: hover) and (pointer: fine) {
+  [data-streamdown="mermaid"] > div > div:has(> button) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  [data-streamdown="mermaid"]:is(:hover, :focus-within)
+    > div
+    > div:has(> button) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* Reserve chart height while Chart.js loads and give its canvas a stable host. */
 .chart-block {
   margin: 8px 0;
